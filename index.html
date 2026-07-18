@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#087f7f">
+  <meta name="description" content="نظام عدي لإدارة المبيعات والمخزون والخدمات">
+  <title>نظام عدي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="boot" class="boot"><div class="spinner"></div><strong>جاري تشغيل النظام…</strong></div>
+
+  <main id="auth-view" class="auth-view hidden">
+    <section class="auth-card">
+      <div class="brand-mark">ع</div>
+      <p class="eyebrow">إدارة المتجر بوضوح</p>
+      <h1 id="auth-title">تسجيل الدخول</h1>
+      <p id="auth-subtitle" class="muted">أدخل بيانات حسابك للمتابعة</p>
+      <form id="auth-form" autocomplete="on">
+        <div id="setup-fields" class="hidden">
+          <label>الاسم الكامل<input id="auth-name" name="name" autocomplete="name" maxlength="80"></label>
+          <label>اسم المحل<input id="shop-name" name="organization" autocomplete="organization" maxlength="100"></label>
+        </div>
+        <label>البريد الإلكتروني<input id="auth-email" name="email" type="email" autocomplete="email" required></label>
+        <label>كلمة المرور<input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" required></label>
+        <button class="btn primary wide" type="submit" id="auth-submit">دخول</button>
+      </form>
+      <div id="auth-error" class="form-error hidden" role="alert"></div>
+    </section>
+  </main>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark small">ع</span><div><strong id="brand-shop">نظام عدي</strong><small>إدارة المتجر</small></div></div>
+      <nav id="main-nav"></nav>
+      <div class="user-panel"><span id="user-avatar">ع</span><div><strong id="user-name"></strong><small id="user-role"></small></div><button id="logout-btn" class="icon-btn" title="تسجيل الخروج">↪</button></div>
+    </aside>
+    <section class="workspace">
+      <header class="topbar">
+        <div><p id="page-kicker" class="eyebrow">نظرة عامة</p><h1 id="page-title">لوحة التحكم</h1></div>
+        <div class="top-actions"><button id="refresh-btn" class="btn ghost">تحديث</button><button id="quick-sale-btn" class="btn primary">فاتورة جديدة</button></div>
+      </header>
+      <div id="alert-strip"></div>
+      <div id="page" class="page"></div>
+    </section>
+  </div>
+
+  <dialog id="entity-dialog" class="dialog"><form method="dialog" class="dialog-shell"><header><div><p class="eyebrow">إدارة البيانات</p><h2 id="dialog-title"></h2></div><button class="icon-btn" value="cancel" aria-label="إغلاق">×</button></header><div id="dialog-body" class="dialog-body"></div><footer><button class="btn ghost" value="cancel">إلغاء</button><button id="dialog-save" class="btn primary" value="default">حفظ</button></footer></form></dialog>
+  <dialog id="confirm-dialog" class="confirm-dialog"><form method="dialog"><div class="danger-icon">!</div><h2 id="confirm-title">تأكيد العملية</h2><p id="confirm-message"></p><div class="actions"><button class="btn ghost" value="cancel">تراجع</button><button id="confirm-ok" class="btn danger" value="confirm">تأكيد</button></div></form></dialog>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
