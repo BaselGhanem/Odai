@@ -515,6 +515,11 @@ textarea {
   background: rgba(53, 21, 23, 0.56);
   backdrop-filter: blur(3px);
 }
+.dialog-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+}
 .dialog-shell > header,
 .dialog-shell > footer {
   padding: 17px 20px;
@@ -579,6 +584,55 @@ textarea {
   color: var(--danger);
   font-weight: 800;
   font-size: 24px;
+}
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: end center;
+  padding: 28px;
+  background: rgba(53, 21, 23, 0.62);
+  backdrop-filter: blur(2px);
+}
+.tour-card {
+  position: relative;
+  z-index: 100;
+  width: min(460px, 100%);
+  padding: 20px;
+  border: 1px solid rgba(151, 14, 22, 0.16);
+  border-radius: 22px;
+  background: var(--white);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.28);
+}
+.tour-card header,
+.tour-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tour-card h2 {
+  margin: 18px 0 8px;
+  color: var(--primary-dark);
+}
+.tour-card p {
+  min-height: 58px;
+  margin: 0 0 20px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.tour-card footer {
+  justify-content: flex-start;
+}
+.tour-target {
+  position: relative;
+  outline: 4px solid rgba(252, 240, 236, 0.95);
+  box-shadow: 0 0 0 8px rgba(151, 14, 22, 0.3);
+  border-radius: var(--radius);
+}
+body:has(.tour-overlay:not(.hidden)) {
+  overflow: hidden;
 }
 .toast-region {
   position: fixed;
@@ -812,8 +866,12 @@ textarea {
   .topbar h1 {
     font-size: 22px;
   }
-  .top-actions .ghost {
+  #refresh-btn {
     display: none;
+  }
+  #help-btn {
+    padding: 10px 11px;
+    font-size: 10px;
   }
   .stats-grid {
     grid-template-columns: 1fr 1fr;
@@ -845,6 +903,12 @@ textarea {
   }
   .dialog-body {
     max-height: calc(100dvh - 145px);
+  }
+  .dialog-shell {
+    max-height: 100dvh;
+  }
+  .tour-overlay {
+    padding: 14px 14px calc(var(--bottom) + 14px);
   }
   .auth-card {
     padding: 28px 22px;
