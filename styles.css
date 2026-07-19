@@ -790,8 +790,56 @@ body:has(.tour-overlay:not(.hidden)) {
   grid-template-columns: 1fr auto;
   gap: 8px;
 }
+.cart-main {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
 .cart-row small {
   color: var(--muted);
+}
+.cart-price-field {
+  width: fit-content;
+  margin: 7px 0 0;
+  display: grid;
+  grid-template-columns: auto 104px auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.cart-price-field input {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-align: center;
+}
+.cart-price-field input:not(:disabled) {
+  border-color: rgba(151, 14, 22, 0.3);
+  background: linear-gradient(135deg, #fff, var(--primary-soft));
+}
+.special-price {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 9px;
+  font-weight: 800;
+}
+.special-price button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: inherit;
+  font-weight: 800;
+  text-decoration: underline;
 }
 .qty {
   display: flex;
