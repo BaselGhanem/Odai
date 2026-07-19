@@ -27,8 +27,9 @@
       rel="stylesheet"
     />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20260719-15" />
-    <script defer src="pwa.js?v=20260719-1"></script>
+    <link rel="apple-touch-icon" href="app-icon-192.png" />
+    <link rel="stylesheet" href="styles.css?v=20260719-16" />
+    <script defer src="pwa.js?v=20260719-2"></script>
   </head>
   <body>
     <div id="boot" class="boot">
@@ -208,6 +209,61 @@
         <span><strong>X Academy</strong><small>احكي معنا</small></span>
       </a>
     </div>
+
+    <section
+      id="pwa-install-prompt"
+      class="pwa-install-prompt hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pwa-install-title"
+    >
+      <button
+        class="pwa-install-backdrop"
+        type="button"
+        data-install-dismiss
+        aria-label="إغلاق"
+      ></button>
+      <article class="pwa-install-card">
+        <button
+          class="pwa-install-close"
+          type="button"
+          data-install-dismiss
+          aria-label="ليس الآن"
+        >
+          ×
+        </button>
+        <div class="pwa-install-brand">
+          <span class="pwa-install-logo"
+            ><img
+              src="./Gemini_Generated_Image_102ux0102ux0102u.png"
+              onerror="this.onerror=null;this.src='./favicon.svg'"
+              alt="شعار الأصيل"
+          /></span>
+          <div><small>تطبيق الأصيل</small><strong>على شاشة هاتفك</strong></div>
+        </div>
+        <p class="eyebrow">وصول أسرع وأسهل</p>
+        <h2 id="pwa-install-title">هل تود تنزيل تطبيق الأصيل؟</h2>
+        <p id="pwa-install-description">
+          افتح النظام مباشرة من شاشة هاتفك كأي تطبيق، مع جاهزية أسرع في كل مرة.
+        </p>
+        <ol id="pwa-install-steps" class="pwa-install-steps hidden"></ol>
+        <div class="pwa-install-actions">
+          <button
+            id="pwa-install-confirm"
+            class="btn primary wide"
+            type="button"
+          >
+            نعم، تثبيت التطبيق
+          </button>
+          <button class="btn ghost wide" type="button" data-install-dismiss>
+            ليس الآن
+          </button>
+        </div>
+        <small class="pwa-install-note"
+          >لن يحتاج إلى متجر تطبيقات، وسيظهر بأيقونة الأصيل.</small
+        >
+      </article>
+    </section>
 
     <dialog id="entity-dialog" class="dialog">
       <div class="dialog-shell">
