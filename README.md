@@ -31,33 +31,11 @@
 - Soft delete للسجلات الأساسية وسجل تدقيق غير قابل للتعديل.
 - تخزين مؤقت محلي لـFirestore، تحميل محدود، وفلاتر تاريخية لتقليل القراءات.
 
-## إضافة Operator
+## إضافة المستخدمين
 
-لأن إنشاء مستخدم Firebase من المتصفح يسجّل خروجه من حساب المدير الحالي، الإجراء الآمن المجاني هو:
+يدخل المدير إلى **المستخدمون → إضافة مستخدم**، ثم يحدد الاسم والبريد وكلمة المرور والدور والصلاحيات. ينشئ النظام حساب Firebase Authentication ووثيقة المستخدم تلقائيا عبر جلسة ثانوية، لذلك تبقى جلسة المدير الحالية مفتوحة.
 
-1. أنشئ المستخدم من **Firebase Authentication → Users → Add user**.
-2. انسخ UID.
-3. أنشئ مستندا في `users/{UID}` بهذه الحقول:
-
-```json
-{
-  "name": "اسم المستخدم",
-  "email": "user@example.com",
-  "role": "operator",
-  "active": true,
-  "isDeleted": false,
-  "permissions": {
-    "dashboard": ["view"],
-    "pos": ["view", "create", "print"],
-    "products": ["view"],
-    "services": ["view"],
-    "customers": ["view", "create"],
-    "invoices": ["view", "print"]
-  }
-}
-```
-
-أضف حقول `createdAt` و`updatedAt` من نوع Timestamp، و`createdBy` بقيمة UID المدير.
+يجب نشر آخر نسخة من `firestore.rules` مرة واحدة للسماح للمدير بإنشاء وثائق المستخدمين. بعد ذلك لا يلزم دخول Firebase لإضافة المستخدمين أو تعديل صلاحياتهم.
 
 ## بنية Firestore
 
