@@ -1,6 +1,6 @@
-import{auth,db}from`./firebase.js`;
-import{createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged}from`https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js`;
-import{doc,collection,getDoc,writeBatch,serverTimestamp}from`https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js`;
+import{auth,db}from'./firebase.js';
+import{createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import{doc,collection,getDoc,writeBatch,serverTimestamp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 export const DEFAULT_ADMIN_PERMISSIONS={dashboard:[`view`],pos:[`view`,`create`,`print`,`discount`,`seeCost`,`seeProfit`],products:[`view`,`create`,`edit`,`delete`,`export`,`seeCost`,`seeProfit`],services:[`view`,`create`,`edit`,`delete`],offers:[`view`,`create`,`edit`,`delete`],purchases:[`view`,`create`,`edit`,`export`,`seeCost`],rentals:[`view`,`create`,`edit`,`print`],customers:[`view`,`create`,`edit`,`delete`,`export`],suppliers:[`view`,`create`,`edit`,`delete`,`export`],employees:[`view`,`create`,`edit`,`delete`],salaries:[`view`,`create`,`edit`,`delete`],advances:[`view`,`create`,`edit`,`delete`],expenses:[`view`,`create`,`edit`,`delete`,`export`],invoices:[`view`,`edit`,`void`,`print`,`export`,`seeProfit`],dailyClosings:[`view`,`create`,`edit`,`export`],reports:[`view`,`export`,`print`,`seeCost`,`seeProfit`],users:[`view`,`create`,`edit`,`delete`],settings:[`view`,`edit`],auditLogs:[`view`,`export`]};
 
