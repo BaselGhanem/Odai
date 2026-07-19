@@ -33,6 +33,16 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const OFFICIAL_SHOP_NAME = `الأصيل للإطارات والزيوت المعدنية`;
 const LOGO_URL = `https://raw.githubusercontent.com/BaselGhanem/Odai/refs/heads/main/Gemini_Generated_Image_102ux0102ux0102u.png`;
+const X_ACADEMY = {
+  name: `X Academy`,
+  slogan: `Learn. Analyse. Design. Lead.`,
+  phone: `0798054014`,
+  internationalPhone: `+962798054014`,
+  whatsappNumber: `962798054014`,
+  color: `#099999`,
+};
+const X_ACADEMY_MESSAGE = `مرحبا X Academy، شاهدت أحد المواقع التي قمتم بتصميمها وأرغب بالاستفسار عن تصميم موقع أو حل أعمال مخصص.`;
+const X_ACADEMY_WHATSAPP_URL = `https://wa.me/${X_ACADEMY.whatsappNumber}?text=${encodeURIComponent(X_ACADEMY_MESSAGE)}`;
 const state = {
   user: null,
   settings: {
@@ -2334,6 +2344,9 @@ $(`#auth-form`).onsubmit = async (event) => {
   }
 };
 $(`#logout-btn`).onclick = logout;
+$$(`[data-x-academy-whatsapp]`).forEach(
+  (link) => (link.href = X_ACADEMY_WHATSAPP_URL),
+);
 $(`#quick-sale-btn`).onclick = () => navigate(`pos`);
 $(`#refresh-btn`).onclick = () => navigate(state.module);
 $(`#help-btn`).onclick = () => startTour(state.module, true);
