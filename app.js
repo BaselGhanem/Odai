@@ -520,7 +520,7 @@ function tourSteps(module) {
       {
         selector: `.cart`,
         title: `إتمام الفاتورة`,
-        text: `حدد الزبون والدفع والخصم ثم احفظ الفاتورة؛ المخزون والصندوق يتحدثان تلقائيا.`,
+        text: `حدد الزبون والدفع، ويمكنك وضع سعر وحدة خاص لهذه الفاتورة فقط، ثم احفظ؛ المخزون والصندوق يتحدثان تلقائيا.`,
       },
     );
   else if (module === `reports`)
@@ -1051,6 +1051,14 @@ async function renderPOS() {
     if (!button) return;
     changeCart(button.dataset.key, button.dataset.cartAction);
   };
+  $(`#cart-list`).oninput = (event) => {
+    const input = event.target.closest(`[data-cart-price]`);
+    if (input) updateCartPrice(input.dataset.key, input.value);
+  };
+  $(`#cart-list`).onchange = (event) => {
+    const input = event.target.closest(`[data-cart-price]`);
+    if (input) finishCartPrice(input.dataset.key, input.value);
+  };
   $(`#clear-cart`).onclick = () => {
     state.cart = [];
     drawCart();
@@ -1081,6 +1089,7 @@ function addToCart(item) {
       type: item.type,
       quantity: 1,
       price: item.price,
+      originalPrice: item.price,
       cost: Number(item.costPrice || item.cost || 0),
       stock: item.stock,
     });
@@ -1101,8 +1110,32 @@ function changeCart(key, action) {
     item.quantity++;
   }
   if (action === `minus`) item.quantity--;
+  if (action === `reset-price`) item.price = item.originalPrice;
   if (action === `remove` || item.quantity <= 0)
     state.cart = state.cart.filter((x) => x.key !== key);
+  drawCart();
+}
+function updateCartPrice(key, rawValue) {
+  if (!can(state.user, `pos`, `discount`)) return;
+  const item = state.cart.find((x) => x.key === key);
+  const value = Number(rawValue);
+  if (!item || rawValue === `` || !Number.isFinite(value) || value < 0) return;
+  item.price = Math.round(value * 100) / 100;
+  drawCartTotals();
+}
+function finishCartPrice(key, rawValue) {
+  const item = state.cart.find((x) => x.key === key);
+  const value = Number(rawValue);
+  if (!item) return;
+  if (
+    !can(state.user, `pos`, `discount`) ||
+    rawValue === `` ||
+    !Number.isFinite(value) ||
+    value < 0
+  ) {
+    item.price = item.originalPrice;
+    toast(`أدخل سعرا صحيحا`, `error`);
+  } else item.price = Math.round(value * 100) / 100;
   drawCart();
 }
 function cartTotals() {
@@ -1123,15 +1156,19 @@ function drawCart() {
   if (!list) return;
   list.innerHTML = state.cart.length
     ? state.cart
-        .map(
-          (item) =>
-            `<div class="cart-row"><div><strong>${escapeHTML(item.name)}</strong><br><small>${money(item.price)} × ${item.quantity}</small></div><div class="qty"><button data-cart-action="plus" data-key="${item.key}">+</button><button data-cart-action="minus" data-key="${item.key}">−</button><button data-cart-action="remove" data-key="${item.key}">×</button></div></div>`,
-        )
+        .map((item) => {
+          const adjusted = Number(item.price) !== Number(item.originalPrice);
+          return `<div class="cart-row"><div class="cart-main"><strong>${escapeHTML(item.name)}</strong><small>${item.quantity} × ${money(item.price)} = ${money(item.quantity * item.price)}</small><label class="cart-price-field"><span>سعر الوحدة</span><input type="number" min="0" step="0.01" inputmode="decimal" value="${item.price}" data-cart-price data-key="${item.key}" ${can(state.user, `pos`, `discount`) ? `` : `disabled`} aria-label="سعر وحدة ${escapeHTML(item.name)}"><span>د.أ</span></label>${adjusted ? `<div class="special-price"><span>سعر خاص لهذه الفاتورة فقط</span><button type="button" data-cart-action="reset-price" data-key="${item.key}">استعادة ${money(item.originalPrice)}</button></div>` : ``}</div><div class="qty"><button type="button" data-cart-action="plus" data-key="${item.key}" aria-label="زيادة الكمية">+</button><button type="button" data-cart-action="minus" data-key="${item.key}" aria-label="تقليل الكمية">−</button><button type="button" data-cart-action="remove" data-key="${item.key}" aria-label="حذف">×</button></div></div>`;
+        })
         .join(``)
     : `<div class="empty"><strong>الفاتورة فارغة</strong>اختر منتجا أو خدمة للبدء.</div>`;
+  drawCartTotals();
+}
+function drawCartTotals() {
+  const totals = $(`#cart-totals`);
+  if (!totals) return;
   const t = cartTotals();
-  $(`#cart-totals`).innerHTML =
-    `<div class="total-line"><span>الإجمالي</span><b>${money(t.gross)}</b></div><div class="total-line"><span>الخصم</span><b>${money(t.discount)}</b></div><div class="total-line final"><span>الصافي</span><b>${money(t.net)}</b></div>`;
+  totals.innerHTML = `<div class="total-line"><span>الإجمالي</span><b>${money(t.gross)}</b></div><div class="total-line"><span>الخصم</span><b>${money(t.discount)}</b></div><div class="total-line final"><span>الصافي</span><b>${money(t.net)}</b></div>`;
 }
 async function saveSale() {
   if (!state.cart.length) {
@@ -1146,6 +1183,14 @@ async function saveSale() {
     const customerId = $(`#pos-customer`).value;
     const customer = state.cache.pos.customers.find((x) => x.id === customerId);
     const paymentMethod = $(`#pos-payment`).value;
+    const priceAdjustments = state.cart
+      .filter((item) => Number(item.price) !== Number(item.originalPrice))
+      .map((item) => ({
+        itemId: item.id,
+        itemName: item.name,
+        originalPrice: item.originalPrice,
+        unitPrice: item.price,
+      }));
     const saleRef = doc(collection(db, `sales`));
     await runTransaction(db, async (transaction) => {
       for (const item of state.cart.filter((x) => x.type === `product`)) {
@@ -1170,6 +1215,7 @@ async function saveSale() {
         netTotal: totals.net,
         costTotal: totals.cost,
         grossProfit: totals.net - totals.cost,
+        hasPriceAdjustments: priceAdjustments.length > 0,
         paymentMethod,
         paidAmount: paymentMethod === `آجل` ? 0 : totals.net,
         remainingAmount: paymentMethod === `آجل` ? totals.net : 0,
@@ -1209,6 +1255,8 @@ async function saveSale() {
           type: item.type,
           quantity: item.quantity,
           unitPrice: item.price,
+          baseUnitPrice: item.originalPrice,
+          priceAdjusted: Number(item.price) !== Number(item.originalPrice),
           unitCost: item.cost,
           total: item.quantity * item.price,
           createdAt: serverTimestamp(),
@@ -1237,6 +1285,7 @@ async function saveSale() {
       saleId: saleRef.id,
       invoiceNo,
       netTotal: totals.net,
+      priceAdjustments,
     });
     toast(`تم حفظ الفاتورة بنجاح`);
     printInvoice({
