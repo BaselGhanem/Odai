@@ -39,7 +39,7 @@
 
 ## بنية Firestore
 
-المجموعات: `users`, `roles`, `permissions`, `products`, `services`, `patchTypes`, `customers`, `suppliers`, `purchases`, `purchaseItems`, `sales`, `saleItems`, `invoices`, `rentals`, `employees`, `salaries`, `advances`, `expenses`, `stockMovements`, `cashMovements`, `offers`, `settings`, `auditLogs`, `dailyClosings`.
+المجموعات: `users`, `roles`, `permissions`, `products`, `services`, `patchTypes`, `customers`, `suppliers`, `purchases`, `purchaseItems`, `sales`, `saleItems`, `invoices`, `rentals`, `employees`, `salaries`, `advances`, `expenses`, `stockMovements`, `cashMovements`, `offers`, `settings`, `auditLogs`.
 
 السجلات التجارية تستخدم `createdAt`, `updatedAt`, `createdBy`, `updatedBy` عند التعديل، و`isDeleted` للحذف المنطقي.
 
