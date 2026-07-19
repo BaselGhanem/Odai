@@ -8,4 +8,4 @@ const auth=getAuth(firebaseApp);
 const db=getFirestore(firebaseApp);
 setPersistence(auth,browserLocalPersistence).catch(()=>{});
 enableIndexedDbPersistence(db).catch(error=>{if(![`failed-precondition`,`unimplemented`].includes(error.code))console.warn(error)});
-export{firebaseApp,auth,db};
+export{firebaseConfig,firebaseApp,auth,db};
