@@ -1,0 +1,20 @@
+{
+  "name": "الأصيل للإطارات والزيوت المعدنية",
+  "short_name": "الأصيل",
+  "description": "نظام إدارة المبيعات والمخزون والخدمات للأصيل للإطارات والزيوت المعدنية",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FDFAFB",
+  "theme_color": "#970E16",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
