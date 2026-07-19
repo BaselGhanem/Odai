@@ -346,6 +346,13 @@ textarea {
   display: grid;
   gap: 18px;
 }
+.page.is-saving {
+  pointer-events: none;
+}
+.page.is-saving .cart {
+  opacity: 0.68;
+  filter: saturate(0.75);
+}
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -909,8 +916,8 @@ body:has(.tour-overlay:not(.hidden)) {
 }
 .permission-row {
   display: grid;
-  grid-template-columns: minmax(145px, 1fr) repeat(7, 62px);
-  min-width: 690px;
+  grid-template-columns: minmax(145px, 1fr) repeat(8, 62px);
+  min-width: 760px;
   gap: 6px;
   align-items: center;
   padding: 10px;
