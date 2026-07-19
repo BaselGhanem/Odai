@@ -13,8 +13,8 @@
   --shadow: 0 14px 40px rgba(151, 14, 22, 0.09);
   --radius: 18px;
   --sidebar: 270px;
-  --x-academy: #099999;
-  --x-academy-dark: #077070;
+  --x-academy: #970e16;
+  --x-academy-dark: #740a10;
 }
 * {
   box-sizing: border-box;
@@ -120,10 +120,10 @@ button {
 .x-academy-panel {
   margin-top: 20px;
   padding: 16px;
-  border: 1px solid rgba(9, 153, 153, 0.2);
+  border: 1px solid rgba(151, 14, 22, 0.14);
   border-radius: 18px;
   background:
-    radial-gradient(circle at 100% 0, rgba(9, 153, 153, 0.12), transparent 46%),
+    radial-gradient(circle at 100% 0, rgba(151, 14, 22, 0.1), transparent 46%),
     rgba(255, 255, 255, 0.78);
   box-shadow:
     0 18px 50px rgba(15, 23, 42, 0.08),
@@ -144,7 +144,7 @@ button {
   flex: 0 0 auto;
   background: linear-gradient(135deg, var(--x-academy), var(--x-academy-dark));
   color: #fff;
-  box-shadow: 0 10px 24px rgba(9, 153, 153, 0.2);
+  box-shadow: 0 10px 24px rgba(151, 14, 22, 0.18);
   font-size: 20px;
   font-weight: 800;
 }
@@ -153,11 +153,11 @@ button {
   gap: 3px;
 }
 .x-academy-brand-row strong {
-  color: #075f5f;
+  color: var(--primary-dark);
   font-size: 15px;
 }
 .x-academy-brand-row small {
-  color: #4f7474;
+  color: var(--muted);
   font-size: 9px;
   letter-spacing: 0.025em;
 }
@@ -199,7 +199,7 @@ button {
   gap: 8px;
   background: linear-gradient(135deg, var(--x-academy), var(--x-academy-dark));
   color: #fff;
-  box-shadow: 0 10px 22px rgba(9, 153, 153, 0.18);
+  box-shadow: 0 10px 22px rgba(151, 14, 22, 0.18);
   font-size: 11px;
   font-weight: 800;
 }
@@ -222,8 +222,8 @@ button {
 .x-academy-cta:hover,
 .x-academy-floating:hover {
   transform: translateY(-2px);
-  border-color: rgba(9, 153, 153, 0.55);
-  box-shadow: 0 14px 34px rgba(9, 153, 153, 0.23);
+  border-color: rgba(151, 14, 22, 0.5);
+  box-shadow: 0 14px 34px rgba(151, 14, 22, 0.22);
 }
 .x-academy-cta,
 .x-academy-floating {
@@ -237,7 +237,7 @@ button {
 .x-academy-phone:focus-visible,
 .x-academy-signature:focus-visible,
 .x-academy-floating:focus-visible {
-  outline: 3px solid rgba(9, 153, 153, 0.28);
+  outline: 3px solid rgba(151, 14, 22, 0.24);
   outline-offset: 3px;
 }
 @keyframes xAcademyReveal {
@@ -496,7 +496,7 @@ textarea {
   font-size: 9px;
 }
 .x-academy-signature strong {
-  color: #6fe1df;
+  color: #fff0ec;
 }
 .x-academy-signature small {
   color: rgba(255, 255, 255, 0.55);
@@ -511,7 +511,7 @@ textarea {
   z-index: 19;
   min-height: 48px;
   padding: 8px 13px;
-  border: 1px solid rgba(9, 153, 153, 0.22);
+  border: 1px solid rgba(151, 14, 22, 0.18);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -533,7 +533,7 @@ textarea {
   font-size: 11px;
 }
 .x-academy-floating small {
-  color: #527a7a;
+  color: var(--muted);
   font-size: 8px;
 }
 .icon-btn {
