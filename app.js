@@ -449,7 +449,14 @@ let activeTour = null;
 function showDialog(dialog) {
   if (!dialog) return;
   if (dialog.open) dialog.close();
+  document.documentElement.classList.add(`dialog-open`);
+  document.body.classList.add(`dialog-open`);
   dialog.showModal();
+}
+function unlockDialogScroll() {
+  if (document.querySelector(`dialog[open]`)) return;
+  document.documentElement.classList.remove(`dialog-open`);
+  document.body.classList.remove(`dialog-open`);
 }
 function closeEntityDialog() {
   const dialog = $(`#entity-dialog`);
@@ -1938,6 +1945,9 @@ $(`#entity-dialog`).addEventListener(`click`, (event) => {
 $(`#confirm-dialog`).addEventListener(`click`, (event) => {
   if (event.target === event.currentTarget) event.currentTarget.close(`cancel`);
 });
+$$(`dialog`).forEach((dialog) =>
+  dialog.addEventListener(`close`, unlockDialogScroll),
+);
 $(`#tour-prev`).onclick = () => {
   if (!activeTour || activeTour.index === 0) return;
   activeTour.index -= 1;
