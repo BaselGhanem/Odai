@@ -1,4 +1,4 @@
-# نظام عدي لإدارة متجر السيارات
+# نظام الأصيل للإطارات والزيوت المعدنية
 
 نظام عربي RTL يعمل مباشرة على GitHub Pages باستخدام HTML وCSS وJavaScript وFirebase Authentication وCloud Firestore.
 
