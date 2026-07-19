@@ -23,7 +23,7 @@
       href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260719-5" />
+    <link rel="stylesheet" href="styles.css?v=20260719-7" />
   </head>
   <body>
     <div id="boot" class="boot">
@@ -48,6 +48,7 @@
               >الاسم الكامل<input
                 id="auth-name"
                 name="name"
+                type="text"
                 autocomplete="name"
                 maxlength="80"
             /></label>
@@ -55,6 +56,7 @@
               >اسم المحل<input
                 id="shop-name"
                 name="organization"
+                type="text"
                 autocomplete="organization"
                 maxlength="100"
                 value="الأصيل للإطارات والزيوت المعدنية"
@@ -104,7 +106,12 @@
           <div>
             <strong id="user-name"></strong><small id="user-role"></small>
           </div>
-          <button id="logout-btn" class="icon-btn" title="تسجيل الخروج">
+          <button
+            id="logout-btn"
+            class="icon-btn"
+            type="button"
+            title="تسجيل الخروج"
+          >
             ↪
           </button>
         </div>
@@ -123,8 +130,11 @@
             </div>
           </div>
           <div class="top-actions">
-            <button id="refresh-btn" class="btn ghost">تحديث</button
-            ><button id="quick-sale-btn" class="btn primary">
+            <button id="help-btn" class="btn ghost" type="button">
+              شرح الصفحة</button
+            ><button id="refresh-btn" class="btn ghost" type="button">
+              تحديث</button
+            ><button id="quick-sale-btn" class="btn primary" type="button">
               فاتورة جديدة
             </button>
           </div>
@@ -135,22 +145,30 @@
     </div>
 
     <dialog id="entity-dialog" class="dialog">
-      <form method="dialog" class="dialog-shell">
+      <div class="dialog-shell">
         <header>
           <div>
             <p class="eyebrow">إدارة البيانات</p>
             <h2 id="dialog-title"></h2>
           </div>
-          <button class="icon-btn" value="cancel" aria-label="إغلاق">×</button>
+          <button
+            class="icon-btn"
+            type="button"
+            data-close-dialog
+            aria-label="إغلاق"
+          >
+            ×
+          </button>
         </header>
         <div id="dialog-body" class="dialog-body"></div>
         <footer>
-          <button class="btn ghost" value="cancel">إلغاء</button
-          ><button id="dialog-save" class="btn primary" value="default">
+          <button class="btn ghost" type="button" data-close-dialog>
+            إلغاء</button
+          ><button id="dialog-save" class="btn primary" type="button">
             حفظ
           </button>
         </footer>
-      </form>
+      </div>
     </dialog>
     <dialog id="confirm-dialog" class="confirm-dialog">
       <form method="dialog">
@@ -158,14 +176,42 @@
         <h2 id="confirm-title">تأكيد العملية</h2>
         <p id="confirm-message"></p>
         <div class="actions">
-          <button class="btn ghost" value="cancel">تراجع</button
-          ><button id="confirm-ok" class="btn danger" value="confirm">
+          <button class="btn ghost" type="submit" value="cancel">تراجع</button
+          ><button
+            id="confirm-ok"
+            class="btn danger"
+            type="submit"
+            value="confirm"
+          >
             تأكيد
           </button>
         </div>
       </form>
     </dialog>
+    <div id="tour-overlay" class="tour-overlay hidden" aria-live="polite">
+      <section class="tour-card" role="dialog" aria-modal="true">
+        <header>
+          <span id="tour-progress" class="badge"></span>
+          <button
+            id="tour-close"
+            class="icon-btn"
+            type="button"
+            aria-label="إغلاق الشرح"
+          >
+            ×
+          </button>
+        </header>
+        <h2 id="tour-title"></h2>
+        <p id="tour-text"></p>
+        <footer>
+          <button id="tour-prev" class="btn ghost" type="button">السابق</button
+          ><button id="tour-next" class="btn primary" type="button">
+            التالي
+          </button>
+        </footer>
+      </section>
+    </div>
     <div id="toast-region" class="toast-region" aria-live="polite"></div>
-    <script type="module" src="app.js?v=20260719-6"></script>
+    <script type="module" src="app.js?v=20260719-7"></script>
   </body>
 </html>
