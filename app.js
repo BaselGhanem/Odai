@@ -15,16 +15,16 @@ import {
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  setDoc,
-  updateDoc,
+  addDoc as firestoreAddDoc,
+  setDoc as firestoreSetDoc,
+  updateDoc as firestoreUpdateDoc,
   query,
   where,
   orderBy,
   limit,
   serverTimestamp,
-  writeBatch,
-  runTransaction,
+  writeBatch as firestoreWriteBatch,
+  waitForPendingWrites,
   increment,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -43,6 +43,28 @@ const X_ACADEMY = {
 };
 const X_ACADEMY_MESSAGE = `مرحبا X Academy، شاهدت أحد المواقع التي قمتم بتصميمها وأرغب بالاستفسار عن تصميم موقع أو حل أعمال مخصص.`;
 const X_ACADEMY_WHATSAPP_URL = `https://wa.me/${X_ACADEMY.whatsappNumber}?text=${encodeURIComponent(X_ACADEMY_MESSAGE)}`;
+const WRITE_GRACE_MS = 2800;
+const OFFLINE_WARMUP_VERSION = `20260719-1`;
+const OFFLINE_COLLECTIONS = [
+  [`products`, 400],
+  [`services`, 200],
+  [`customers`, 300],
+  [`suppliers`, 200],
+  [`sales`, 250],
+  [`saleItems`, 500],
+  [`purchases`, 250],
+  [`purchaseItems`, 500],
+  [`rentals`, 250],
+  [`expenses`, 250],
+  [`salaries`, 250],
+  [`advances`, 250],
+  [`employees`, 200],
+  [`stockMovements`, 500],
+  [`cashMovements`, 500],
+  [`offers`, 200],
+  [`patchTypes`, 100],
+  [`auditLogs`, 250],
+];
 const state = {
   user: null,
   settings: {
@@ -58,6 +80,68 @@ const state = {
   navGroup: null,
   setupInProgress: false,
 };
+
+function deferredWriteError(error) {
+  console.error(`Deferred Firestore write failed`, error);
+  try {
+    localStorage.setItem(
+      `odai-last-sync-error`,
+      JSON.stringify({ code: error?.code || `unknown`, at: Date.now() }),
+    );
+  } catch {}
+}
+
+async function persistWrite(promise) {
+  if (!navigator.onLine) {
+    promise.catch(deferredWriteError);
+    return { queued: true };
+  }
+  let timer;
+  const delayed = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ queued: true }), WRITE_GRACE_MS);
+  });
+  try {
+    const result = await Promise.race([
+      promise.then((value) => ({ value })),
+      delayed,
+    ]);
+    if (`value` in result) {
+      clearTimeout(timer);
+      return result.value;
+    }
+    promise.catch(deferredWriteError);
+    return result;
+  } catch (error) {
+    clearTimeout(timer);
+    throw error;
+  }
+}
+
+const addDoc = (...args) => persistWrite(firestoreAddDoc(...args));
+const setDoc = (...args) => persistWrite(firestoreSetDoc(...args));
+const updateDoc = (...args) => persistWrite(firestoreUpdateDoc(...args));
+
+function writeBatch(...args) {
+  const batch = firestoreWriteBatch(...args);
+  const wrapper = {
+    set(...setArgs) {
+      batch.set(...setArgs);
+      return wrapper;
+    },
+    update(...updateArgs) {
+      batch.update(...updateArgs);
+      return wrapper;
+    },
+    delete(...deleteArgs) {
+      batch.delete(...deleteArgs);
+      return wrapper;
+    },
+    commit() {
+      return persistWrite(batch.commit());
+    },
+  };
+  return wrapper;
+}
 const DEFAULT_OPERATOR_PERMISSIONS = {
   dashboard: [`view`],
   pos: [`view`, `create`, `print`],
@@ -798,6 +882,39 @@ async function fetchRecent(collectionName, count = 200) {
     .map((item) => ({ id: item.id, ...item.data() }))
     .filter((item) => !item.isDeleted);
 }
+async function warmOfflineCache() {
+  if (!navigator.onLine || !state.user?.id) return;
+  const dayKey = todayISO();
+  const storageKey = `odai-offline-ready:${OFFLINE_WARMUP_VERSION}:${state.user.id}:${dayKey}`;
+  try {
+    if (localStorage.getItem(storageKey)) return;
+  } catch {}
+  await Promise.allSettled(
+    OFFLINE_COLLECTIONS.map(([collectionName, count]) =>
+      fetchRecent(collectionName, count),
+    ),
+  );
+  try {
+    localStorage.setItem(storageKey, `1`);
+  } catch {}
+}
+
+async function syncPendingWrites() {
+  if (!navigator.onLine || !state.user?.id) return;
+  document.documentElement.dataset.connection = `syncing`;
+  try {
+    await waitForPendingWrites(db);
+    try {
+      localStorage.removeItem(`odai-last-sync-error`);
+    } catch {}
+  } catch (error) {
+    deferredWriteError(error);
+  } finally {
+    document.documentElement.dataset.connection = navigator.onLine
+      ? `online`
+      : `local`;
+  }
+}
 function valueCell(value, type) {
   if (type === `money`) return money(value);
   if (type === `date`) return dateText(value);
@@ -1298,52 +1415,86 @@ async function saveSale() {
         unitPrice: item.price,
       }));
     const saleRef = doc(collection(db, `sales`));
-    await runTransaction(db, async (transaction) => {
-      for (const item of saleCart.filter((x) => x.type === `product`)) {
-        const ref = doc(db, `products`, item.id);
-        const snap = await transaction.get(ref);
-        if (!snap.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
-        const current = Number(snap.data().stock || 0);
-        if (!state.settings.allowNegativeStock && current < item.quantity)
-          throw new Error(`الكمية المتوفرة من ${item.name} هي ${current}`);
-        transaction.update(ref, {
+    for (const item of saleCart.filter((x) => x.type === `product`)) {
+      const current = Number(item.stock || 0);
+      if (!state.settings.allowNegativeStock && current < item.quantity)
+        throw new Error(`الكمية المتوفرة من ${item.name} هي ${current}`);
+    }
+    const saleBatch = writeBatch(db);
+    saleCart
+      .filter((item) => item.type === `product`)
+      .forEach((item) => {
+        saleBatch.update(doc(db, `products`, item.id), {
           stock: increment(-item.quantity),
           updatedAt: serverTimestamp(),
           updatedBy: state.user.id,
         });
-      }
-      transaction.set(saleRef, {
-        invoiceNo,
-        customerId: customerId || null,
-        customerName: customer?.name || `زبون نقدي`,
-        grossTotal: finalTotals.gross,
-        discount: finalTotals.discount,
-        netTotal: finalTotals.net,
-        costTotal: finalTotals.cost,
-        grossProfit: finalTotals.net - finalTotals.cost,
-        hasPriceAdjustments: priceAdjustments.length > 0,
+      });
+    saleBatch.set(saleRef, {
+      invoiceNo,
+      customerId: customerId || null,
+      customerName: customer?.name || `زبون نقدي`,
+      grossTotal: finalTotals.gross,
+      discount: finalTotals.discount,
+      netTotal: finalTotals.net,
+      costTotal: finalTotals.cost,
+      grossProfit: finalTotals.net - finalTotals.cost,
+      hasPriceAdjustments: priceAdjustments.length > 0,
+      paymentMethod,
+      paidAmount: paymentMethod === `آجل` ? 0 : finalTotals.net,
+      remainingAmount: paymentMethod === `آجل` ? finalTotals.net : 0,
+      status: `مكتملة`,
+      notes: $(`#pos-notes`).value,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: state.user.id,
+      operatorName: state.user.name,
+      isDeleted: false,
+    });
+    if (paymentMethod === `آجل` && customerId)
+      saleBatch.update(doc(db, `customers`, customerId), {
+        balance: increment(finalTotals.net),
+        updatedAt: serverTimestamp(),
+        updatedBy: state.user.id,
+      });
+    if (paymentMethod !== `آجل`)
+      saleBatch.set(doc(collection(db, `cashMovements`)), {
+        type: `بيع`,
+        amount: finalTotals.net,
         paymentMethod,
-        paidAmount: paymentMethod === `آجل` ? 0 : finalTotals.net,
-        remainingAmount: paymentMethod === `آجل` ? finalTotals.net : 0,
-        status: `مكتملة`,
-        notes: $(`#pos-notes`).value,
+        referenceId: saleRef.id,
+        referenceNo: invoiceNo,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: state.user.id,
-        operatorName: state.user.name,
         isDeleted: false,
       });
-      if (paymentMethod === `آجل` && customerId)
-        transaction.update(doc(db, `customers`, customerId), {
-          balance: increment(finalTotals.net),
-          updatedAt: serverTimestamp(),
-          updatedBy: state.user.id,
-        });
-      if (paymentMethod !== `آجل`)
-        transaction.set(doc(collection(db, `cashMovements`)), {
+    saleCart.forEach((item) => {
+      const itemRef = doc(collection(db, `saleItems`));
+      saleBatch.set(itemRef, {
+        saleId: saleRef.id,
+        invoiceNo,
+        itemId: item.id,
+        itemName: item.name,
+        type: item.type,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        baseUnitPrice: item.originalPrice,
+        priceAdjusted: Number(item.price) !== Number(item.originalPrice),
+        unitCost: item.cost,
+        total: item.quantity * item.price,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: state.user.id,
+        isDeleted: false,
+      });
+      if (item.type === `product`) {
+        const movementRef = doc(collection(db, `stockMovements`));
+        saleBatch.set(movementRef, {
+          productId: item.id,
+          productName: item.name,
           type: `بيع`,
-          amount: finalTotals.net,
-          paymentMethod,
+          quantity: -item.quantity,
           referenceId: saleRef.id,
           referenceNo: invoiceNo,
           createdAt: serverTimestamp(),
@@ -1351,42 +1502,9 @@ async function saveSale() {
           createdBy: state.user.id,
           isDeleted: false,
         });
-      saleCart.forEach((item) => {
-        const itemRef = doc(collection(db, `saleItems`));
-        transaction.set(itemRef, {
-          saleId: saleRef.id,
-          invoiceNo,
-          itemId: item.id,
-          itemName: item.name,
-          type: item.type,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          baseUnitPrice: item.originalPrice,
-          priceAdjusted: Number(item.price) !== Number(item.originalPrice),
-          unitCost: item.cost,
-          total: item.quantity * item.price,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          createdBy: state.user.id,
-          isDeleted: false,
-        });
-        if (item.type === `product`) {
-          const movementRef = doc(collection(db, `stockMovements`));
-          transaction.set(movementRef, {
-            productId: item.id,
-            productName: item.name,
-            type: `بيع`,
-            quantity: -item.quantity,
-            referenceId: saleRef.id,
-            referenceNo: invoiceNo,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            createdBy: state.user.id,
-            isDeleted: false,
-          });
-        }
-      });
+      }
     });
+    await saleBatch.commit();
     await audit(`create-invoice`, `pos`, null, {
       saleId: saleRef.id,
       invoiceNo,
@@ -1422,7 +1540,7 @@ function printInvoice(data, win) {
   try {
     win.document.open();
     win.document.write(
-      `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${data.invoiceNo}</title><style>body{font-family:Arial;padding:16px;color:#2b1719}.invoice-logo{display:block;width:92px;height:92px;object-fit:cover;border-radius:22px;margin:0 auto 8px}.shop-name{color:#970E16;margin:4px 0}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #d7bec0;text-align:right}.total{font-size:18px;font-weight:bold;color:#970E16}.meta{display:flex;justify-content:space-between;font-size:12px;border-block:1px solid #FCF0EC;padding:8px 0}@media print{button{display:none}}</style></head><body><img class="invoice-logo" src="${LOGO_URL}" alt="شعار الأصيل"><h2 class="shop-name">${escapeHTML(state.settings.shopName)}</h2><p>فاتورة مبيعات</p><div class="meta"><span>${data.invoiceNo}</span><span>${new Date().toLocaleString(`ar-JO`)}</span></div><p>الزبون: ${escapeHTML(data.customerName)}</p><table><thead><tr><th>المادة</th><th>ك</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((i) => `<tr><td>${escapeHTML(i.name)}</td><td>${i.quantity}</td><td>${money(i.price)}</td><td>${money(i.quantity * i.price)}</td></tr>`).join(``)}</tbody></table>${data.discount > 0 ? `<p>الإجمالي قبل الخصم: ${money(data.gross)}</p><p>الخصم: ${money(data.discount)}</p>` : ``}<p class="total">${data.discount > 0 ? `الصافي` : `الإجمالي`}: ${money(data.net)}</p><p>الدفع: ${escapeHTML(data.paymentMethod)}</p><button onclick="print()">طباعة</button><script>window.onload=()=>window.print()<\/script></body></html>`,
+      `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${data.invoiceNo}</title><style>body{font-family:Arial;padding:16px;color:#2b1719}.invoice-logo{display:block;width:92px;height:92px;object-fit:cover;border-radius:22px;margin:0 auto 8px}.shop-name{color:#970E16;margin:4px 0}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #d7bec0;text-align:right}.total{font-size:18px;font-weight:bold;color:#970E16}.meta{display:flex;justify-content:space-between;font-size:12px;border-block:1px solid #FCF0EC;padding:8px 0}@media print{button{display:none}}</style></head><body><img class="invoice-logo" src="${LOGO_URL}" onerror="this.onerror=null;this.src='./favicon.svg'" alt="شعار الأصيل"><h2 class="shop-name">${escapeHTML(state.settings.shopName)}</h2><p>فاتورة مبيعات</p><div class="meta"><span>${data.invoiceNo}</span><span>${new Date().toLocaleString(`ar-JO`)}</span></div><p>الزبون: ${escapeHTML(data.customerName)}</p><table><thead><tr><th>المادة</th><th>ك</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((i) => `<tr><td>${escapeHTML(i.name)}</td><td>${i.quantity}</td><td>${money(i.price)}</td><td>${money(i.quantity * i.price)}</td></tr>`).join(``)}</tbody></table>${data.discount > 0 ? `<p>الإجمالي قبل الخصم: ${money(data.gross)}</p><p>الخصم: ${money(data.discount)}</p>` : ``}<p class="total">${data.discount > 0 ? `الصافي` : `الإجمالي`}: ${money(data.net)}</p><p>الدفع: ${escapeHTML(data.paymentMethod)}</p><button onclick="print()">طباعة</button><script>window.onload=()=>window.print()<\/script></body></html>`,
     );
     win.document.close();
   } catch (error) {
@@ -1787,7 +1905,7 @@ function invoiceMoment(value) {
   return Number.isNaN(date.valueOf()) ? `—` : date.toLocaleString(`ar-JO`);
 }
 function invoiceDocumentHTML(data) {
-  return `<article class="invoice-document" dir="rtl"><header class="invoice-brand"><img crossorigin="anonymous" src="${LOGO_URL}" alt="شعار الأصيل"><div><p>الأصيل للإطارات والزيوت المعدنية</p><h2>${escapeHTML(state.settings.shopName)}</h2><span>فاتورة مبيعات</span></div></header><div class="invoice-meta"><div><small>رقم الفاتورة</small><strong>${escapeHTML(data.invoiceNo)}</strong></div><div><small>التاريخ والوقت</small><strong>${invoiceMoment(data.createdAt)}</strong></div><div><small>الزبون</small><strong>${escapeHTML(data.customerName || `زبون نقدي`)}</strong></div><div><small>طريقة الدفع</small><strong>${escapeHTML(data.paymentMethod || `—`)}</strong></div></div>${data.status === `ملغاة` ? `<div class="invoice-cancelled">فاتورة ملغاة</div>` : ``}<div class="invoice-items"><table><thead><tr><th>المادة أو الخدمة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((item) => `<tr><td>${escapeHTML(item.name)}</td><td>${item.quantity}</td><td>${money(item.price)}</td><td>${money(item.quantity * item.price)}</td></tr>`).join(``)}</tbody></table></div><div class="invoice-summary"><div><span>${data.discount > 0 ? `الإجمالي قبل الخصم` : `الإجمالي`}</span><strong>${money(data.gross)}</strong></div>${data.discount > 0 ? `<div class="discount"><span>الخصم</span><strong>− ${money(data.discount)}</strong></div>` : ``}<div class="grand-total"><span>${data.discount > 0 ? `الصافي` : `المبلغ المطلوب`}</span><strong>${money(data.net)}</strong></div></div>${data.notes ? `<div class="invoice-notes"><strong>ملاحظات</strong><p>${escapeHTML(data.notes)}</p></div>` : ``}<footer><span>شكرًا لاختياركم الأصيل</span><small>خدمتكم وثقتكم مسؤوليتنا</small></footer></article>`;
+  return `<article class="invoice-document" dir="rtl"><header class="invoice-brand"><img crossorigin="anonymous" src="${LOGO_URL}" onerror="this.onerror=null;this.src='./favicon.svg'" alt="شعار الأصيل"><div><p>الأصيل للإطارات والزيوت المعدنية</p><h2>${escapeHTML(state.settings.shopName)}</h2><span>فاتورة مبيعات</span></div></header><div class="invoice-meta"><div><small>رقم الفاتورة</small><strong>${escapeHTML(data.invoiceNo)}</strong></div><div><small>التاريخ والوقت</small><strong>${invoiceMoment(data.createdAt)}</strong></div><div><small>الزبون</small><strong>${escapeHTML(data.customerName || `زبون نقدي`)}</strong></div><div><small>طريقة الدفع</small><strong>${escapeHTML(data.paymentMethod || `—`)}</strong></div></div>${data.status === `ملغاة` ? `<div class="invoice-cancelled">فاتورة ملغاة</div>` : ``}<div class="invoice-items"><table><thead><tr><th>المادة أو الخدمة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((item) => `<tr><td>${escapeHTML(item.name)}</td><td>${item.quantity}</td><td>${money(item.price)}</td><td>${money(item.quantity * item.price)}</td></tr>`).join(``)}</tbody></table></div><div class="invoice-summary"><div><span>${data.discount > 0 ? `الإجمالي قبل الخصم` : `الإجمالي`}</span><strong>${money(data.gross)}</strong></div>${data.discount > 0 ? `<div class="discount"><span>الخصم</span><strong>− ${money(data.discount)}</strong></div>` : ``}<div class="grand-total"><span>${data.discount > 0 ? `الصافي` : `المبلغ المطلوب`}</span><strong>${money(data.net)}</strong></div></div>${data.notes ? `<div class="invoice-notes"><strong>ملاحظات</strong><p>${escapeHTML(data.notes)}</p></div>` : ``}<footer><span>شكرًا لاختياركم الأصيل</span><small>خدمتكم وثقتكم مسؤوليتنا</small></footer></article>`;
 }
 async function openInvoicePreview(row) {
   const dialog = $(`#entity-dialog`);
@@ -2315,6 +2433,8 @@ async function showApp(user) {
     : allowedNav()[0]?.[0];
   renderNav();
   await navigate(state.module);
+  void warmOfflineCache();
+  void syncPendingWrites();
 }
 $(`#auth-form`).onsubmit = async (event) => {
   event.preventDefault();
@@ -2391,6 +2511,10 @@ document.addEventListener(`click`, (event) => {
     state.navGroup = null;
     renderNav();
   }
+});
+window.addEventListener(`online`, () => {
+  void syncPendingWrites();
+  void warmOfflineCache();
 });
 watchAuth(async (user) => {
   if (state.setupInProgress) return;
