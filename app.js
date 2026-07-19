@@ -1,6 +1,6 @@
-import{db,auth}from`./firebase.js`;
-import{watchAuth,isInitialized,setupFirstAdmin,login,logout,getUserProfile,can,DEFAULT_ADMIN_PERMISSIONS}from`./auth.js`;
-import{collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,query,where,orderBy,limit,serverTimestamp,writeBatch,runTransaction,increment,Timestamp}from`https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js`;
+import{db,auth}from'./firebase.js';
+import{watchAuth,isInitialized,setupFirstAdmin,login,logout,getUserProfile,can,DEFAULT_ADMIN_PERMISSIONS}from'./auth.js';
+import{collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,query,where,orderBy,limit,serverTimestamp,writeBatch,runTransaction,increment,Timestamp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const $=selector=>document.querySelector(selector);const $$=selector=>[...document.querySelectorAll(selector)];
 const state={user:null,settings:{currency:`JOD`,shopName:`نظام عدي`,allowNegativeStock:false,paymentMethods:[`كاش`,`بطاقة`,`CliQ`,`تحويل بنكي`,`آجل`]},module:`dashboard`,cache:{},cart:[],reportRows:[],setupInProgress:false};
