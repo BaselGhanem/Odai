@@ -6,6 +6,9 @@ service cloud.firestore {
     function profile() { return get(userPath()).data; }
     function active() { return signedIn() && exists(userPath()) && profile().active == true && profile().isDeleted == false; }
     function admin() { return active() && profile().role == 'admin'; }
+    function superuser() { return admin()
+      && exists(/databases/$(database)/documents/settings/bootstrap)
+      && get(/databases/$(database)/documents/settings/bootstrap).data.adminUid == request.auth.uid; }
     function has(module, action) { return admin() || (active() && profile().permissions[module] is list && action in profile().permissions[module]); }
     function bootstrapMissing() { return !exists(/databases/$(database)/documents/settings/bootstrap); }
     function ownsMetadata() { return request.resource.data.createdBy == request.auth.uid; }
@@ -32,27 +35,27 @@ service cloud.firestore {
       allow update: if has('settings', 'edit');
       allow delete: if false;
     }
-    match /products/{id} { allow read: if has('products','view') || has('pos','view') || has('purchases','view') || has('rentals','view'); allow create: if has('products','create') && ownsMetadata(); allow update: if has('products','edit') || has('pos','create') || has('purchases','create') || has('rentals','create') || has('invoices','void'); allow delete: if false; }
-    match /services/{id} { allow read: if has('services','view') || has('pos','view'); allow create: if has('services','create') && ownsMetadata(); allow update: if has('services','edit'); allow delete: if false; }
-    match /customers/{id} { allow read: if has('customers','view') || has('pos','view') || has('rentals','view'); allow create: if has('customers','create') && ownsMetadata(); allow update: if has('customers','edit') || has('pos','create') || has('invoices','void'); allow delete: if false; }
-    match /suppliers/{id} { allow read: if has('suppliers','view') || has('purchases','view'); allow create: if has('suppliers','create') && ownsMetadata(); allow update: if has('suppliers','edit') || has('purchases','create'); allow delete: if false; }
-    match /employees/{id} { allow read: if has('employees','view') || has('salaries','view') || has('advances','view'); allow create: if has('employees','create') && ownsMetadata(); allow update: if has('employees','edit'); allow delete: if false; }
-    match /sales/{id} { allow read: if has('invoices','view') || has('reports','view') || has('dashboard','view'); allow create: if has('pos','create') && ownsMetadata(); allow update: if has('invoices','edit') || has('invoices','void'); allow delete: if false; }
-    match /saleItems/{id} { allow read: if has('invoices','view') || has('reports','view'); allow create: if has('pos','create') && ownsMetadata(); allow update, delete: if false; }
-    match /purchases/{id} { allow read: if has('purchases','view') || has('reports','view') || has('dashboard','view'); allow create: if has('purchases','create') && ownsMetadata(); allow update: if has('purchases','edit'); allow delete: if false; }
-    match /purchaseItems/{id} { allow read: if has('purchases','view') || has('reports','view'); allow create: if has('purchases','create') && ownsMetadata(); allow update, delete: if false; }
-    match /rentals/{id} { allow read: if has('rentals','view') || has('reports','view') || has('dashboard','view'); allow create: if has('rentals','create') && ownsMetadata(); allow update: if has('rentals','edit') || has('rentals','create'); allow delete: if false; }
-    match /expenses/{id} { allow read: if has('expenses','view') || has('reports','view') || has('dashboard','view'); allow create: if has('expenses','create') && ownsMetadata(); allow update: if has('expenses','edit'); allow delete: if false; }
-    match /salaries/{id} { allow read: if has('salaries','view') || has('reports','view'); allow create: if has('salaries','create') && ownsMetadata(); allow update: if has('salaries','edit'); allow delete: if false; }
-    match /advances/{id} { allow read: if has('advances','view') || has('reports','view'); allow create: if has('advances','create') && ownsMetadata(); allow update: if has('advances','edit'); allow delete: if false; }
-    match /stockMovements/{id} { allow read: if has('products','view') || has('reports','view'); allow create: if active() && ownsMetadata(); allow update, delete: if false; }
-    match /cashMovements/{id} { allow read: if has('reports','view'); allow create: if active() && ownsMetadata(); allow update, delete: if false; }
-    match /auditLogs/{id} { allow read: if has('auditLogs','view'); allow create: if active() && ownsMetadata(); allow update, delete: if false; }
-    match /offers/{id} { allow read: if active(); allow create: if has('offers','create') && ownsMetadata(); allow update: if has('offers','edit'); allow delete: if false; }
-    match /patchTypes/{id} { allow read: if active(); allow create: if (signedIn() && bootstrapMissing() && ownsMetadata()) || admin(); allow update: if admin(); allow delete: if false; }
+    match /products/{id} { allow read: if has('products','view') || has('pos','view') || has('purchases','view') || has('rentals','view'); allow create: if has('products','create') && ownsMetadata(); allow update: if has('products','edit') || has('pos','create') || has('purchases','create') || has('rentals','create') || has('invoices','void'); allow delete: if superuser(); }
+    match /services/{id} { allow read: if has('services','view') || has('pos','view'); allow create: if has('services','create') && ownsMetadata(); allow update: if has('services','edit'); allow delete: if superuser(); }
+    match /customers/{id} { allow read: if has('customers','view') || has('pos','view') || has('rentals','view'); allow create: if has('customers','create') && ownsMetadata(); allow update: if has('customers','edit') || has('pos','create') || has('invoices','void'); allow delete: if superuser(); }
+    match /suppliers/{id} { allow read: if has('suppliers','view') || has('purchases','view'); allow create: if has('suppliers','create') && ownsMetadata(); allow update: if has('suppliers','edit') || has('purchases','create'); allow delete: if superuser(); }
+    match /employees/{id} { allow read: if has('employees','view') || has('salaries','view') || has('advances','view'); allow create: if has('employees','create') && ownsMetadata(); allow update: if has('employees','edit'); allow delete: if superuser(); }
+    match /sales/{id} { allow read: if has('invoices','view') || has('reports','view') || has('dashboard','view'); allow create: if has('pos','create') && ownsMetadata(); allow update: if has('invoices','edit') || has('invoices','void'); allow delete: if superuser(); }
+    match /saleItems/{id} { allow read: if has('invoices','view') || has('reports','view'); allow create: if has('pos','create') && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /purchases/{id} { allow read: if has('purchases','view') || has('reports','view') || has('dashboard','view'); allow create: if has('purchases','create') && ownsMetadata(); allow update: if has('purchases','edit'); allow delete: if superuser(); }
+    match /purchaseItems/{id} { allow read: if has('purchases','view') || has('reports','view'); allow create: if has('purchases','create') && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /rentals/{id} { allow read: if has('rentals','view') || has('reports','view') || has('dashboard','view'); allow create: if has('rentals','create') && ownsMetadata(); allow update: if has('rentals','edit') || has('rentals','create'); allow delete: if superuser(); }
+    match /expenses/{id} { allow read: if has('expenses','view') || has('reports','view') || has('dashboard','view'); allow create: if has('expenses','create') && ownsMetadata(); allow update: if has('expenses','edit'); allow delete: if superuser(); }
+    match /salaries/{id} { allow read: if has('salaries','view') || has('reports','view'); allow create: if has('salaries','create') && ownsMetadata(); allow update: if has('salaries','edit'); allow delete: if superuser(); }
+    match /advances/{id} { allow read: if has('advances','view') || has('reports','view'); allow create: if has('advances','create') && ownsMetadata(); allow update: if has('advances','edit'); allow delete: if superuser(); }
+    match /stockMovements/{id} { allow read: if has('products','view') || has('reports','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /cashMovements/{id} { allow read: if has('reports','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /auditLogs/{id} { allow read: if has('auditLogs','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /offers/{id} { allow read: if active(); allow create: if has('offers','create') && ownsMetadata(); allow update: if has('offers','edit'); allow delete: if superuser(); }
+    match /patchTypes/{id} { allow read: if active(); allow create: if (signedIn() && bootstrapMissing() && ownsMetadata()) || admin(); allow update: if admin(); allow delete: if superuser(); }
     match /roles/{id} { allow read: if active(); allow write: if admin(); }
     match /permissions/{id} { allow read, write: if admin(); }
-    match /invoices/{id} { allow read: if has('invoices','view'); allow create: if active() && ownsMetadata(); allow update: if has('invoices','edit') || has('invoices','void'); allow delete: if false; }
+    match /invoices/{id} { allow read: if has('invoices','view'); allow create: if active() && ownsMetadata(); allow update: if has('invoices','edit') || has('invoices','void'); allow delete: if superuser(); }
     match /{document=**} { allow read, write: if false; }
   }
 }
