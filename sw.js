@@ -1,19 +1,21 @@
 const CACHE_PREFIX = `odai-offline`;
-const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260719-15`;
-const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260719-15`;
+const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260719-16`;
+const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260719-16`;
 const SCOPE = self.registration.scope;
 
 const shellUrl = (path) => new URL(path, SCOPE).href;
 const CORE_ASSETS = [
   `./`,
   `./index.html`,
-  `./styles.css?v=20260719-15`,
+  `./styles.css?v=20260719-16`,
   `./app.js?v=20260719-15`,
   `./auth.js?v=20260719-7`,
   `./firebase.js?v=20260719-7`,
   `./favicon.svg`,
   `./manifest.webmanifest`,
-  `./pwa.js?v=20260719-1`,
+  `./pwa.js?v=20260719-2`,
+  `./app-icon-192.png`,
+  `./app-icon-512.png`,
   `./owner-vault-970e16.html`,
   `./owner-vault.css?v=20260719-2`,
   `./owner-vault.js?v=20260719-2`,
@@ -73,6 +75,17 @@ async function networkFirst(request) {
   }
 }
 
+async function warmOptionalAsset(cache, asset) {
+  let timer;
+  await Promise.race([
+    cache.add(new Request(asset)).catch(() => {}),
+    new Promise((resolve) => {
+      timer = setTimeout(resolve, 4500);
+    }),
+  ]);
+  clearTimeout(timer);
+}
+
 self.addEventListener(`install`, (event) => {
   event.waitUntil(
     (async () => {
@@ -80,7 +93,7 @@ self.addEventListener(`install`, (event) => {
       await shell.addAll(CORE_ASSETS);
       const runtime = await caches.open(RUNTIME_CACHE);
       await Promise.allSettled(
-        OPTIONAL_ASSETS.map((asset) => runtime.add(new Request(asset))),
+        OPTIONAL_ASSETS.map((asset) => warmOptionalAsset(runtime, asset)),
       );
       await self.skipWaiting();
     })(),
