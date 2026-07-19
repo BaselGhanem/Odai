@@ -49,7 +49,6 @@ service cloud.firestore {
     match /cashMovements/{id} { allow read: if has('reports','view'); allow create: if active() && ownsMetadata(); allow update, delete: if false; }
     match /auditLogs/{id} { allow read: if has('auditLogs','view'); allow create: if active() && ownsMetadata(); allow update, delete: if false; }
     match /offers/{id} { allow read: if active(); allow create: if has('offers','create') && ownsMetadata(); allow update: if has('offers','edit'); allow delete: if false; }
-    match /dailyClosings/{id} { allow read: if has('dailyClosings','view') || has('reports','view'); allow create: if has('dailyClosings','create') && ownsMetadata(); allow update: if has('dailyClosings','edit'); allow delete: if false; }
     match /patchTypes/{id} { allow read: if active(); allow create: if (signedIn() && bootstrapMissing() && ownsMetadata()) || admin(); allow update: if admin(); allow delete: if false; }
     match /roles/{id} { allow read: if active(); allow write: if admin(); }
     match /permissions/{id} { allow read, write: if admin(); }
