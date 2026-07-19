@@ -39,7 +39,7 @@ const X_ACADEMY = {
   phone: `0798054014`,
   internationalPhone: `+962798054014`,
   whatsappNumber: `962798054014`,
-  color: `#099999`,
+  color: `#970E16`,
 };
 const X_ACADEMY_MESSAGE = `مرحبا X Academy، شاهدت أحد المواقع التي قمتم بتصميمها وأرغب بالاستفسار عن تصميم موقع أو حل أعمال مخصص.`;
 const X_ACADEMY_WHATSAPP_URL = `https://wa.me/${X_ACADEMY.whatsappNumber}?text=${encodeURIComponent(X_ACADEMY_MESSAGE)}`;
