@@ -72,7 +72,12 @@ const HTML_ENTITIES = new Map([
 ]);
 const escapeHTML = (value) =>
   String(value ?? ``).replace(/[&<>'"]/g, (char) => HTML_ENTITIES.get(char));
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+};
 const monthStart = () => `${todayISO().slice(0, 7)}-01`;
 const NAV = [
   [`dashboard`, `⌂`, `لوحة التحكم`],
@@ -820,6 +825,8 @@ function openEntityForm(module, row = null) {
       if (type === `checkbox`) data[key] = data[key] === `true`;
     });
     const computed = meta.compute ? meta.compute(data) : data;
+    const saveButton = $(`#dialog-save`);
+    saveButton.disabled = true;
     try {
       if (row) {
         await updateDoc(doc(db, meta.collection, row.id), {
@@ -864,6 +871,8 @@ function openEntityForm(module, row = null) {
       navigate(module);
     } catch (error) {
       toast(readableError(error), `error`);
+    } finally {
+      saveButton.disabled = false;
     }
   };
 }
@@ -890,6 +899,7 @@ async function softDelete(module, row) {
 function confirmAction(title, message) {
   return new Promise((resolve) => {
     const dialog = $(`#confirm-dialog`);
+    dialog.returnValue = `cancel`;
     $(`#confirm-title`).textContent = title;
     $(`#confirm-message`).textContent = message;
     showDialog(dialog);
@@ -905,12 +915,14 @@ async function renderDashboard() {
     fetchRecent(`products`, 300),
     fetchRecent(`rentals`, 100),
   ]);
-  const start = new Date(monthStart());
-  const inMonth = (row) => dateValue(row.createdAt || row.date) >= start;
-  const monthSales = sales
+  const completedSales = sales.filter((row) => row.status !== `ملغاة`);
+  const start = new Date(`${monthStart()}T00:00:00`);
+  const inMonth = (row) =>
+    dateValue(row.date || row.purchaseDate || row.createdAt) >= start;
+  const monthSales = completedSales
     .filter(inMonth)
     .reduce((sum, row) => sum + Number(row.netTotal || 0), 0);
-  const todaySales = sales
+  const todaySales = completedSales
     .filter(
       (row) =>
         dateText(row.createdAt) === new Date().toLocaleDateString(`ar-JO`),
@@ -922,7 +934,7 @@ async function renderDashboard() {
   const monthPurchases = purchases
     .filter(inMonth)
     .reduce((sum, row) => sum + Number(row.totalCost || 0), 0);
-  const grossProfit = sales
+  const grossProfit = completedSales
     .filter(inMonth)
     .reduce((sum, row) => sum + Number(row.grossProfit || 0), 0);
   const low = products.filter(
@@ -938,7 +950,7 @@ async function renderDashboard() {
     [
       `مبيعات اليوم`,
       money(todaySales),
-      `${sales.filter((row) => dateText(row.createdAt) === new Date().toLocaleDateString(`ar-JO`)).length} فاتورة`,
+      `${completedSales.filter((row) => dateText(row.createdAt) === new Date().toLocaleDateString(`ar-JO`)).length} فاتورة`,
       `▤`,
     ],
     [`مبيعات الشهر`, money(monthSales), `صافي المبيعات`, `↗`],
@@ -954,7 +966,7 @@ async function renderDashboard() {
       ? `<div class="alert-strip"><span>يوجد ${low.length} صنف منخفض و${overdue.length} إيجار متأخر.</span><button data-alerts>عرض التفاصيل</button></div>`
       : ``;
   $(`#page`).innerHTML =
-    `<div class="stats-grid">${stats.map(([label, value, note, icon]) => `<article class="stat-card"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><strong>${value}</strong><small>${note}</small></article>`).join(``)}</div><div class="split"><section class="panel"><div class="panel-head"><h2>اتجاه المبيعات — آخر 7 أيام</h2></div>${salesChart(sales)}</section><section class="panel"><div class="panel-head"><h2>تنبيهات المخزون</h2><button class="btn ghost small" data-products>كل المنتجات</button></div>${
+    `<div class="stats-grid">${stats.map(([label, value, note, icon]) => `<article class="stat-card"><div class="stat-top"><span>${label}</span><span class="stat-icon">${icon}</span></div><strong>${value}</strong><small>${note}</small></article>`).join(``)}</div><div class="split"><section class="panel"><div class="panel-head"><h2>اتجاه المبيعات — آخر 7 أيام</h2></div>${salesChart(completedSales)}</section><section class="panel"><div class="panel-head"><h2>تنبيهات المخزون</h2><button class="btn ghost small" data-products>كل المنتجات</button></div>${
       low.length
         ? low
             .slice(0, 6)
@@ -1143,7 +1155,10 @@ function cartTotals() {
     (sum, item) => sum + item.quantity * item.price,
     0,
   );
-  const discount = Number($(`#pos-discount`)?.value || 0);
+  const rawDiscount = Number($(`#pos-discount`)?.value || 0);
+  const discount = Number.isFinite(rawDiscount)
+    ? Math.min(gross, Math.max(0, rawDiscount))
+    : 0;
   return {
     gross,
     discount,
@@ -1168,22 +1183,46 @@ function drawCartTotals() {
   const totals = $(`#cart-totals`);
   if (!totals) return;
   const t = cartTotals();
-  totals.innerHTML = `<div class="total-line"><span>الإجمالي</span><b>${money(t.gross)}</b></div><div class="total-line"><span>الخصم</span><b>${money(t.discount)}</b></div><div class="total-line final"><span>الصافي</span><b>${money(t.net)}</b></div>`;
+  totals.innerHTML = `<div class="total-line"><span>${t.discount > 0 ? `الإجمالي قبل الخصم` : `الإجمالي`}</span><b>${money(t.gross)}</b></div>${t.discount > 0 ? `<div class="total-line"><span>الخصم</span><b>${money(t.discount)}</b></div>` : ``}<div class="total-line final"><span>${t.discount > 0 ? `الصافي` : `المطلوب`}</span><b>${money(t.net)}</b></div>`;
 }
 async function saveSale() {
   if (!state.cart.length) {
     toast(`أضف مادة واحدة على الأقل`, `error`);
     return;
   }
+  const customerId = $(`#pos-customer`).value;
+  const customer = state.cache.pos.customers.find((x) => x.id === customerId);
+  const paymentMethod = $(`#pos-payment`).value;
+  if (paymentMethod === `آجل` && !customerId) {
+    toast(`اختر زبونا مسجلا قبل البيع الآجل`, `error`);
+    $(`#pos-customer`).focus();
+    return;
+  }
+  const totals = cartTotals();
+  const discountInput = $(`#pos-discount`);
+  const enteredDiscount = Number(discountInput.value || 0);
+  if (!Number.isFinite(enteredDiscount) || enteredDiscount < 0) {
+    discountInput.value = `0`;
+    drawCartTotals();
+    discountInput.focus();
+    toast(`أدخل قيمة خصم صحيحة`, `error`);
+    return;
+  } else if (enteredDiscount > totals.gross) {
+    discountInput.value = String(totals.gross);
+    drawCartTotals();
+    discountInput.focus();
+    toast(`لا يمكن أن يتجاوز الخصم إجمالي الفاتورة`, `error`);
+    return;
+  }
+  const finalTotals = cartTotals();
+  const saleCart = state.cart.map((item) => ({ ...item }));
+  const printWindow = window.open(``, `_blank`, `width=440,height=720`);
   const button = $(`#save-sale`);
   button.disabled = true;
+  $(`#page`).classList.add(`is-saving`);
   try {
-    const totals = cartTotals();
     const invoiceNo = `${state.settings.invoicePrefix || `INV`}-${Date.now().toString().slice(-9)}`;
-    const customerId = $(`#pos-customer`).value;
-    const customer = state.cache.pos.customers.find((x) => x.id === customerId);
-    const paymentMethod = $(`#pos-payment`).value;
-    const priceAdjustments = state.cart
+    const priceAdjustments = saleCart
       .filter((item) => Number(item.price) !== Number(item.originalPrice))
       .map((item) => ({
         itemId: item.id,
@@ -1193,7 +1232,7 @@ async function saveSale() {
       }));
     const saleRef = doc(collection(db, `sales`));
     await runTransaction(db, async (transaction) => {
-      for (const item of state.cart.filter((x) => x.type === `product`)) {
+      for (const item of saleCart.filter((x) => x.type === `product`)) {
         const ref = doc(db, `products`, item.id);
         const snap = await transaction.get(ref);
         if (!snap.exists()) throw new Error(`المنتج ${item.name} غير موجود`);
@@ -1210,15 +1249,15 @@ async function saveSale() {
         invoiceNo,
         customerId: customerId || null,
         customerName: customer?.name || `زبون نقدي`,
-        grossTotal: totals.gross,
-        discount: totals.discount,
-        netTotal: totals.net,
-        costTotal: totals.cost,
-        grossProfit: totals.net - totals.cost,
+        grossTotal: finalTotals.gross,
+        discount: finalTotals.discount,
+        netTotal: finalTotals.net,
+        costTotal: finalTotals.cost,
+        grossProfit: finalTotals.net - finalTotals.cost,
         hasPriceAdjustments: priceAdjustments.length > 0,
         paymentMethod,
-        paidAmount: paymentMethod === `آجل` ? 0 : totals.net,
-        remainingAmount: paymentMethod === `آجل` ? totals.net : 0,
+        paidAmount: paymentMethod === `آجل` ? 0 : finalTotals.net,
+        remainingAmount: paymentMethod === `آجل` ? finalTotals.net : 0,
         status: `مكتملة`,
         notes: $(`#pos-notes`).value,
         createdAt: serverTimestamp(),
@@ -1229,14 +1268,14 @@ async function saveSale() {
       });
       if (paymentMethod === `آجل` && customerId)
         transaction.update(doc(db, `customers`, customerId), {
-          balance: increment(totals.net),
+          balance: increment(finalTotals.net),
           updatedAt: serverTimestamp(),
           updatedBy: state.user.id,
         });
       if (paymentMethod !== `آجل`)
         transaction.set(doc(collection(db, `cashMovements`)), {
           type: `بيع`,
-          amount: totals.net,
+          amount: finalTotals.net,
           paymentMethod,
           referenceId: saleRef.id,
           referenceNo: invoiceNo,
@@ -1245,7 +1284,7 @@ async function saveSale() {
           createdBy: state.user.id,
           isDeleted: false,
         });
-      state.cart.forEach((item) => {
+      saleCart.forEach((item) => {
         const itemRef = doc(collection(db, `saleItems`));
         transaction.set(itemRef, {
           saleId: saleRef.id,
@@ -1284,35 +1323,45 @@ async function saveSale() {
     await audit(`create-invoice`, `pos`, null, {
       saleId: saleRef.id,
       invoiceNo,
-      netTotal: totals.net,
+      netTotal: finalTotals.net,
       priceAdjustments,
     });
     toast(`تم حفظ الفاتورة بنجاح`);
-    printInvoice({
-      invoiceNo,
-      customerName: customer?.name || `زبون نقدي`,
-      ...totals,
-      items: state.cart,
-      paymentMethod,
-    });
+    printInvoice(
+      {
+        invoiceNo,
+        customerName: customer?.name || `زبون نقدي`,
+        ...finalTotals,
+        items: saleCart,
+        paymentMethod,
+      },
+      printWindow,
+    );
     state.cart = [];
     await renderPOS();
   } catch (error) {
+    if (printWindow && !printWindow.closed) printWindow.close();
     toast(readableError(error), `error`);
   } finally {
     button.disabled = false;
+    $(`#page`).classList.remove(`is-saving`);
   }
 }
-function printInvoice(data) {
-  const win = window.open(``, `_blank`, `width=440,height=720`);
-  if (!win) {
+function printInvoice(data, win) {
+  if (!win || win.closed) {
     toast(`اسمح بالنوافذ المنبثقة لطباعة الفاتورة`, `error`);
     return;
   }
-  win.document.write(
-    `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${data.invoiceNo}</title><style>body{font-family:Arial;padding:16px;color:#2b1719}.invoice-logo{display:block;width:92px;height:92px;object-fit:cover;border-radius:22px;margin:0 auto 8px}.shop-name{color:#970E16;margin:4px 0}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #d7bec0;text-align:right}.total{font-size:18px;font-weight:bold;color:#970E16}.meta{display:flex;justify-content:space-between;font-size:12px;border-block:1px solid #FCF0EC;padding:8px 0}@media print{button{display:none}}</style></head><body><img class="invoice-logo" src="${LOGO_URL}" alt="شعار الأصيل"><h2 class="shop-name">${escapeHTML(state.settings.shopName)}</h2><p>فاتورة مبيعات</p><div class="meta"><span>${data.invoiceNo}</span><span>${new Date().toLocaleString(`ar-JO`)}</span></div><p>الزبون: ${escapeHTML(data.customerName)}</p><table><thead><tr><th>المادة</th><th>ك</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((i) => `<tr><td>${escapeHTML(i.name)}</td><td>${i.quantity}</td><td>${money(i.price)}</td><td>${money(i.quantity * i.price)}</td></tr>`).join(``)}</tbody></table><p>الخصم: ${money(data.discount)}</p><p class="total">الصافي: ${money(data.net)}</p><p>الدفع: ${escapeHTML(data.paymentMethod)}</p><button onclick="print()">طباعة</button><script>window.onload=()=>window.print()<\/script></body></html>`,
-  );
-  win.document.close();
+  try {
+    win.document.open();
+    win.document.write(
+      `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${data.invoiceNo}</title><style>body{font-family:Arial;padding:16px;color:#2b1719}.invoice-logo{display:block;width:92px;height:92px;object-fit:cover;border-radius:22px;margin:0 auto 8px}.shop-name{color:#970E16;margin:4px 0}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px dashed #d7bec0;text-align:right}.total{font-size:18px;font-weight:bold;color:#970E16}.meta{display:flex;justify-content:space-between;font-size:12px;border-block:1px solid #FCF0EC;padding:8px 0}@media print{button{display:none}}</style></head><body><img class="invoice-logo" src="${LOGO_URL}" alt="شعار الأصيل"><h2 class="shop-name">${escapeHTML(state.settings.shopName)}</h2><p>فاتورة مبيعات</p><div class="meta"><span>${data.invoiceNo}</span><span>${new Date().toLocaleString(`ar-JO`)}</span></div><p>الزبون: ${escapeHTML(data.customerName)}</p><table><thead><tr><th>المادة</th><th>ك</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((i) => `<tr><td>${escapeHTML(i.name)}</td><td>${i.quantity}</td><td>${money(i.price)}</td><td>${money(i.quantity * i.price)}</td></tr>`).join(``)}</tbody></table>${data.discount > 0 ? `<p>الإجمالي قبل الخصم: ${money(data.gross)}</p><p>الخصم: ${money(data.discount)}</p>` : ``}<p class="total">${data.discount > 0 ? `الصافي` : `الإجمالي`}: ${money(data.net)}</p><p>الدفع: ${escapeHTML(data.paymentMethod)}</p><button onclick="print()">طباعة</button><script>window.onload=()=>window.print()<\/script></body></html>`,
+    );
+    win.document.close();
+  } catch (error) {
+    console.warn(`Invoice printing failed`, error);
+    toast(`تم حفظ الفاتورة لكن تعذرت الطباعة`, `error`);
+  }
 }
 
 async function renderPurchases() {
@@ -1336,6 +1385,14 @@ async function renderPurchases() {
   $(`#new-purchase`).onclick = () => openPurchaseForm(products, suppliers);
 }
 function openPurchaseForm(products, suppliers) {
+  if (!products.length) {
+    toast(`أضف منتجا قبل تسجيل فاتورة شراء`, `error`);
+    return;
+  }
+  if (!suppliers.length) {
+    toast(`أضف موردا قبل تسجيل فاتورة شراء`, `error`);
+    return;
+  }
   $(`#dialog-title`).textContent = `فاتورة شراء جديدة`;
   $(`#dialog-body`).innerHTML =
     `<form id="purchase-form" class="form-grid"><label>المورد<select name="supplierId" required><option value="">اختر</option>${suppliers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>تاريخ الشراء<input name="purchaseDate" type="date" value="${todayISO()}" required></label><label>المنتج<select name="productId" required><option value="">اختر</option>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" required></label><label>تكلفة الوحدة<input name="unitCost" type="number" min="0" step="0.01" required></label><label>المبلغ المدفوع<input name="paidAmount" type="number" min="0" step="0.01" required></label><label>طريقة الدفع<select name="paymentMethod">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
@@ -1352,8 +1409,15 @@ function openPurchaseForm(products, suppliers) {
     data.unitCost = Number(data.unitCost);
     data.paidAmount = Number(data.paidAmount);
     data.totalCost = data.quantity * data.unitCost;
+    if (data.paidAmount > data.totalCost) {
+      toast(`المبلغ المدفوع لا يمكن أن يتجاوز إجمالي فاتورة الشراء`, `error`);
+      form.elements.paidAmount.focus();
+      return;
+    }
     data.remainingAmount = Math.max(0, data.totalCost - data.paidAmount);
     data.invoiceNo = `PUR-${Date.now().toString().slice(-9)}`;
+    const saveButton = $(`#dialog-save`);
+    saveButton.disabled = true;
     try {
       const ref = doc(collection(db, `purchases`));
       const batch = writeBatch(db);
@@ -1420,6 +1484,8 @@ function openPurchaseForm(products, suppliers) {
       navigate(`purchases`);
     } catch (error) {
       toast(readableError(error), `error`);
+    } finally {
+      saveButton.disabled = false;
     }
   };
 }
@@ -1460,6 +1526,10 @@ function openRentalForm(products, customers) {
     toast(`عرّف منتجا قابلا للتأجير أولا`, `error`);
     return;
   }
+  if (!customers.length) {
+    toast(`أضف زبونا قبل تسجيل عملية تأجير`, `error`);
+    return;
+  }
   $(`#dialog-title`).textContent = `تأجير مادة`;
   $(`#dialog-body`).innerHTML =
     `<form id="rental-form" class="form-grid"><label>المادة<select name="itemId" required>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)} — متوفر ${x.stock || 0}</option>`).join(``)}</select></label><label>الزبون<select name="customerId" required>${customers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>تاريخ التأجير<input name="rentalDate" type="date" value="${todayISO()}" required></label><label>الإرجاع المتوقع<input name="expectedReturnDate" type="date" value="${todayISO()}" required></label><label>سعر التأجير<input name="rentalPrice" type="number" min="0" step="0.01" required></label><label>التأمين<input name="deposit" type="number" min="0" step="0.01" value="0"></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
@@ -1475,6 +1545,11 @@ function openRentalForm(products, customers) {
     data.quantity = Number(data.quantity);
     data.rentalPrice = Number(data.rentalPrice);
     data.deposit = Number(data.deposit);
+    if (data.expectedReturnDate < data.rentalDate) {
+      toast(`تاريخ الإرجاع يجب أن يساوي تاريخ التأجير أو يأتي بعده`, `error`);
+      form.elements.expectedReturnDate.focus();
+      return;
+    }
     if (
       !state.settings.allowNegativeStock &&
       Number(item.stock) < data.quantity
@@ -1482,6 +1557,8 @@ function openRentalForm(products, customers) {
       toast(`الكمية غير متوفرة`, `error`);
       return;
     }
+    const saveButton = $(`#dialog-save`);
+    saveButton.disabled = true;
     try {
       const ref = doc(collection(db, `rentals`));
       const batch = writeBatch(db);
@@ -1518,6 +1595,8 @@ function openRentalForm(products, customers) {
       navigate(`rentals`);
     } catch (error) {
       toast(readableError(error), `error`);
+    } finally {
+      saveButton.disabled = false;
     }
   };
 }
@@ -1667,14 +1746,21 @@ async function renderReports() {
     fetchRecent(`expenses`, 500),
     fetchRecent(`purchases`, 500),
   ]);
+  const completedSales = sales.filter((row) => row.status !== `ملغاة`);
   const recalc = () => {
     const from = new Date(`${$(`#report-from`).value}T00:00:00`);
     const to = new Date(`${$(`#report-to`).value}T23:59:59`);
+    if (from > to) {
+      state.reportRows = [];
+      $(`#report-output`).innerHTML =
+        `<section class="panel empty"><strong>الفترة غير صحيحة</strong>تاريخ البداية يجب أن يسبق تاريخ النهاية.</section>`;
+      return;
+    }
     const inside = (row) => {
-      const d = dateValue(row.createdAt || row.date || row.purchaseDate);
+      const d = dateValue(row.date || row.purchaseDate || row.createdAt);
       return d >= from && d <= to;
     };
-    const filteredSales = sales.filter(inside);
+    const filteredSales = completedSales.filter(inside);
     const filteredExpenses = expenses.filter(inside);
     const filteredPurchases = purchases.filter(inside);
     const netSales = filteredSales.reduce(
@@ -1758,6 +1844,7 @@ function openUserPermissions(user = null) {
   const actions = [
     [`view`, `عرض`],
     [`create`, `إضافة`],
+    [`discount`, `خصم/سعر`],
     [`edit`, `تعديل`],
     [`delete`, `حذف`],
     [`export`, `تصدير`],
