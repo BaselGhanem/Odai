@@ -16,9 +16,9 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /users/{uid} {
-      allow create: if signedIn() && uid == request.auth.uid && bootstrapMissing()
+      allow create: if admin() || (signedIn() && uid == request.auth.uid && bootstrapMissing()
                     && request.resource.data.role == 'admin'
-                    && getAfter(/databases/$(database)/documents/settings/bootstrap).data.adminUid == uid;
+                    && getAfter(/databases/$(database)/documents/settings/bootstrap).data.adminUid == uid);
       allow read: if active() && (admin() || uid == request.auth.uid);
       allow update: if admin() || (active() && uid == request.auth.uid
                     && request.resource.data.role == resource.data.role
