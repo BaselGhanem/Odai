@@ -45,6 +45,7 @@ const state = {
   cache: {},
   cart: [],
   reportRows: [],
+  navGroup: null,
   setupInProgress: false,
 };
 const DEFAULT_OPERATOR_PERMISSIONS = {
@@ -98,6 +99,39 @@ const NAV = [
   [`users`, `♚`, `المستخدمون`],
   [`settings`, `⚙`, `الإعدادات`],
   [`auditLogs`, `◷`, `سجل التدقيق`],
+];
+const NAV_GROUPS = [
+  { key: `home`, icon: `⌂`, label: `الرئيسية`, modules: [`dashboard`] },
+  {
+    key: `sales`,
+    icon: `▣`,
+    label: `المبيعات`,
+    modules: [`pos`, `invoices`, `customers`, `offers`],
+  },
+  {
+    key: `operations`,
+    icon: `◫`,
+    label: `العمليات`,
+    modules: [`products`, `services`, `purchases`, `rentals`, `suppliers`],
+  },
+  {
+    key: `staff`,
+    icon: `♟`,
+    label: `الموظفون`,
+    modules: [`employees`, `salaries`, `advances`],
+  },
+  {
+    key: `finance`,
+    icon: `▥`,
+    label: `المالية`,
+    modules: [`expenses`, `reports`],
+  },
+  {
+    key: `system`,
+    icon: `⚙`,
+    label: `النظام`,
+    modules: [`users`, `settings`, `auditLogs`],
+  },
 ];
 const META = {
   products: {
@@ -667,15 +701,30 @@ function allowedNav() {
 }
 function renderNav() {
   const nav = $(`#main-nav`);
-  nav.innerHTML = allowedNav()
-    .map(
-      ([key, icon, label]) =>
-        `<button class="nav-item ${state.module === key ? `active` : ``}" data-module="${key}"><span>${icon}</span>${label}</button>`,
-    )
+  const allowed = new Map(allowedNav().map((item) => [item[0], item]));
+  const groups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.modules.map((module) => allowed.get(module)).filter(Boolean),
+  })).filter((group) => group.items.length);
+  nav.innerHTML = groups
+    .map((group) => {
+      const direct = group.modules.length === 1;
+      const open = state.navGroup === group.key;
+      const active = group.items.some(([module]) => module === state.module);
+      return `<div class="nav-group ${open ? `open` : ``} ${active ? `has-active` : ``}"><button class="nav-item nav-group-toggle ${active ? `active` : ``}" type="button" ${direct ? `data-module="${group.items[0][0]}"` : `data-nav-group="${group.key}"`} aria-expanded="${open}"><span>${group.icon}</span><b>${group.label}</b>${direct ? `` : `<i aria-hidden="true">⌄</i>`}</button>${direct ? `` : `<div class="nav-children">${group.items.map(([module, icon, label]) => `<button class="nav-item ${state.module === module ? `active` : ``}" type="button" data-module="${module}"><span>${icon}</span>${label}</button>`).join(``)}</div>`}</div>`;
+    })
     .join(``);
   nav.onclick = (event) => {
-    const button = event.target.closest(`[data-module]`);
-    if (button) navigate(button.dataset.module);
+    const moduleButton = event.target.closest(`[data-module]`);
+    const groupButton = event.target.closest(`[data-nav-group]`);
+    if (moduleButton) navigate(moduleButton.dataset.module);
+    else if (groupButton) {
+      state.navGroup =
+        state.navGroup === groupButton.dataset.navGroup
+          ? null
+          : groupButton.dataset.navGroup;
+      renderNav();
+    }
   };
 }
 function setHeader(module) {
@@ -697,6 +746,14 @@ async function navigate(module) {
   }
   if (activeTour) endTour(true);
   state.module = module;
+  const activeGroup = NAV_GROUPS.find((group) =>
+    group.modules.includes(module),
+  );
+  state.navGroup = window.matchMedia(`(max-width: 780px)`).matches
+    ? null
+    : activeGroup?.modules.length > 1
+      ? activeGroup.key
+      : null;
   renderNav();
   setHeader(module);
   $(`#page`).innerHTML =
@@ -2311,6 +2368,16 @@ $(`#tour-overlay`).onclick = (event) => {
 };
 document.addEventListener(`keydown`, (event) => {
   if (event.key === `Escape` && activeTour) endTour(true);
+});
+document.addEventListener(`click`, (event) => {
+  if (
+    state.navGroup &&
+    window.matchMedia(`(max-width: 780px)`).matches &&
+    !event.target.closest(`#main-nav`)
+  ) {
+    state.navGroup = null;
+    renderNav();
+  }
 });
 watchAuth(async (user) => {
   if (state.setupInProgress) return;
