@@ -399,6 +399,10 @@ textarea {
   font-size: 17px;
   margin: 0;
 }
+.section-note {
+  margin: 7px 0 0;
+  font-size: 11px;
+}
 .panel-actions {
   display: flex;
   gap: 8px;
@@ -718,10 +722,13 @@ textarea {
 .permission-grid {
   display: grid;
   gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 .permission-row {
   display: grid;
-  grid-template-columns: 1fr repeat(5, 70px);
+  grid-template-columns: minmax(145px, 1fr) repeat(7, 62px);
+  min-width: 690px;
   gap: 6px;
   align-items: center;
   padding: 10px;
@@ -857,9 +864,9 @@ textarea {
     text-align: center;
   }
   .permission-row {
-    grid-template-columns: 1fr repeat(5, 46px);
+    grid-template-columns: minmax(120px, 1fr) repeat(7, 46px);
+    min-width: 620px;
     font-size: 9px;
-    overflow: auto;
   }
 }
 @media (max-width: 390px) {
