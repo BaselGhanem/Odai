@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#970E16" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <title>مساحة المالك | الأصيل</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://raw.githubusercontent.com/BaselGhanem/Odai/refs/heads/main/Gemini_Generated_Image_102ux0102ux0102u.png"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20260719-14" />
+    <link rel="stylesheet" href="superuser.css?v=20260719-1" />
+  </head>
+  <body class="superuser-body">
+    <div id="owner-boot" class="owner-boot" role="status" aria-live="polite">
+      <span class="owner-spinner" aria-hidden="true"></span>
+      <strong>جاري التحقق من هوية مالك النظام…</strong>
+    </div>
+
+    <main id="access-denied" class="access-state hidden">
+      <section class="access-card">
+        <span class="access-icon" aria-hidden="true">!</span>
+        <p class="owner-eyebrow">مساحة محمية</p>
+        <h1>لا تملك صلاحية الدخول</h1>
+        <p id="access-message">
+          هذه الصفحة متاحة حصريًا للحساب الرئيسي الذي قام بتهيئة النظام.
+        </p>
+        <a class="owner-btn owner-btn-primary" href="./index.html"
+          >العودة إلى النظام</a
+        >
+      </section>
+    </main>
+
+    <div id="owner-app" class="owner-app hidden">
+      <header class="owner-header">
+        <a
+          class="owner-brand"
+          href="./index.html"
+          aria-label="العودة إلى النظام"
+        >
+          <span class="owner-logo"
+            ><img
+              src="https://raw.githubusercontent.com/BaselGhanem/Odai/refs/heads/main/Gemini_Generated_Image_102ux0102ux0102u.png"
+              alt="شعار الأصيل"
+          /></span>
+          <span
+            ><strong>الأصيل للإطارات والزيوت المعدنية</strong
+            ><small>مساحة مالك النظام</small></span
+          >
+        </a>
+        <div class="owner-header-actions">
+          <a class="owner-btn owner-btn-quiet" href="./index.html">النظام</a>
+          <button
+            id="owner-logout"
+            class="owner-btn owner-btn-quiet"
+            type="button"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </header>
+
+      <main class="owner-content">
+        <section class="owner-hero">
+          <div class="owner-hero-copy">
+            <div class="owner-badge"><span></span> محمية للحساب الرئيسي</div>
+            <p class="owner-eyebrow">بداية نظيفة دون خسارة الحسابات</p>
+            <h1>صفّر بيانات التجربة عندما يصبح الفريق جاهزًا</h1>
+            <p>
+              دع المستخدمين يجرّبون النظام يومين أو ثلاثة، ثم احذف جميع بيانات
+              التشغيل التجريبية بضغطة واحدة وابدأ العمل الفعلي من الصفر.
+            </p>
+          </div>
+          <div class="owner-profile">
+            <span id="owner-avatar">م</span>
+            <div>
+              <small>صاحب الصلاحية</small>
+              <strong id="owner-name">مالك النظام</strong>
+              <span id="owner-email"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="owner-summary" aria-label="ملخص البيانات">
+          <article class="owner-stat owner-stat-emphasis">
+            <span class="owner-stat-icon" aria-hidden="true">∑</span>
+            <div>
+              <small>إجمالي السجلات التي ستُحذف</small
+              ><strong id="total-count">—</strong>
+            </div>
+          </article>
+          <article class="owner-stat">
+            <span class="owner-stat-icon" aria-hidden="true">✓</span>
+            <div>
+              <small>البيانات المحمية</small
+              ><strong>المستخدمون والإعدادات</strong>
+            </div>
+          </article>
+          <article class="owner-stat">
+            <span class="owner-stat-icon" aria-hidden="true">↻</span>
+            <div>
+              <small>آخر تصفير</small
+              ><strong id="last-reset">لم يتم بعد</strong>
+            </div>
+          </article>
+        </section>
+
+        <div id="owner-alert" class="owner-alert hidden" role="alert"></div>
+
+        <section class="owner-grid">
+          <article class="owner-panel data-panel">
+            <header class="owner-panel-head">
+              <div>
+                <p class="owner-eyebrow">معاينة قبل التنفيذ</p>
+                <h2>البيانات التشغيلية</h2>
+                <p>الأرقام أدناه تُقرأ مباشرة من قاعدة البيانات.</p>
+              </div>
+              <button
+                id="refresh-counts"
+                class="owner-btn owner-btn-quiet"
+                type="button"
+              >
+                تحديث الأعداد
+              </button>
+            </header>
+            <div
+              id="collection-list"
+              class="collection-list"
+              aria-live="polite"
+            ></div>
+          </article>
+
+          <aside class="owner-side">
+            <article class="owner-panel protected-panel">
+              <span class="shield-icon" aria-hidden="true">✓</span>
+              <div>
+                <p class="owner-eyebrow">لن يتم لمسها</p>
+                <h2>محمية دائمًا</h2>
+              </div>
+              <ul>
+                <li>حسابات Firebase Authentication</li>
+                <li>مستندات المستخدمين وصلاحياتهم</li>
+                <li>إعدادات المحل والهوية والفاتورة</li>
+                <li>تهيئة النظام والحساب الرئيسي</li>
+              </ul>
+            </article>
+
+            <article class="owner-panel danger-panel">
+              <div class="danger-heading">
+                <span aria-hidden="true">!</span>
+                <div>
+                  <p class="owner-eyebrow">منطقة حساسة</p>
+                  <h2>تصفير بيانات الموقع</h2>
+                </div>
+              </div>
+              <p>
+                العملية نهائية ولا يوجد زر تراجع. ستُحذف المنتجات والحركات
+                والفواتير وباقي بيانات التجربة، بينما تبقى الحسابات والإعدادات.
+              </p>
+              <button
+                id="open-reset"
+                class="owner-btn owner-btn-danger"
+                type="button"
+                disabled
+              >
+                تصفير بيانات التجربة
+              </button>
+              <small id="reset-readiness">يجب تحميل أعداد السجلات أولًا.</small>
+            </article>
+          </aside>
+        </section>
+      </main>
+
+      <footer class="owner-footer">
+        <span>مساحة إدارية مخفية وغير مرتبطة بقوائم النظام.</span>
+        <a
+          href="https://wa.me/962798054014"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="تواصل مع X Academy عبر واتساب"
+          >تصميم وتطوير <strong>X Academy</strong></a
+        >
+      </footer>
+    </div>
+
+    <dialog id="reset-dialog" class="reset-dialog">
+      <div class="reset-shell">
+        <header>
+          <span class="reset-warning" aria-hidden="true">!</span>
+          <div>
+            <p class="owner-eyebrow">تأكيد مزدوج</p>
+            <h2>هل تريد بدء النظام من الصفر؟</h2>
+          </div>
+        </header>
+        <p class="reset-intro">
+          للتأكد أن العملية مقصودة، أدخل كلمة مرورك واكتب العبارة الظاهرة كما
+          هي.
+        </p>
+        <label
+          >كلمة مرور الحساب الرئيسي
+          <input
+            id="owner-password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="أدخل كلمة المرور"
+          />
+        </label>
+        <label
+          >اكتب: <strong id="confirmation-phrase">تصفير بيانات الأصيل</strong>
+          <input
+            id="confirmation-input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="اكتب عبارة التأكيد"
+          />
+        </label>
+        <label class="reset-check">
+          <input id="confirmation-check" type="checkbox" />
+          <span
+            >أفهم أن جميع بيانات التشغيل ستُحذف نهائيًا ولا يمكن
+            استعادتها.</span
+          >
+        </label>
+        <div
+          id="reset-progress"
+          class="reset-progress hidden"
+          aria-live="polite"
+        >
+          <div class="progress-track"><span id="progress-bar"></span></div>
+          <div>
+            <strong id="progress-title">جاري التحضير…</strong
+            ><small id="progress-detail"></small>
+          </div>
+        </div>
+        <div id="reset-error" class="reset-error hidden" role="alert"></div>
+        <footer>
+          <button
+            id="cancel-reset"
+            class="owner-btn owner-btn-quiet"
+            type="button"
+          >
+            إلغاء
+          </button>
+          <button
+            id="confirm-reset"
+            class="owner-btn owner-btn-danger"
+            type="button"
+            disabled
+          >
+            نعم، احذف بيانات التجربة
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <script type="module" src="superuser.js?v=20260719-1"></script>
+  </body>
+</html>
