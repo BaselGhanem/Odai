@@ -1648,6 +1648,7 @@ function simpleTable(rows, columns, rentalActions = false) {
 async function renderInvoices() {
   const rows = await fetchRecent(`sales`, 300);
   state.cache.invoices = rows;
+  state.cache.invoiceDetails = {};
   $(`#page`).innerHTML =
     `<section class="panel"><div class="panel-head"><h2>فواتير المبيعات</h2><div class="panel-actions"><button class="btn ghost" id="invoice-export">تصدير CSV</button></div></div>${invoiceTable(rows)}</section>`;
   $(`#invoice-export`).onclick = () =>
@@ -1664,14 +1665,221 @@ async function renderInvoices() {
       `فواتير المبيعات`,
     );
   $(`#page`).onclick = (event) => {
-    const button = event.target.closest(`[data-void]`);
-    if (button) voidInvoice(rows.find((x) => x.id === button.dataset.void));
+    const viewButton = event.target.closest(`[data-view-invoice]`);
+    const pdfButton = event.target.closest(`[data-pdf-invoice]`);
+    const voidButton = event.target.closest(`[data-void]`);
+    if (viewButton)
+      openInvoicePreview(
+        rows.find((x) => x.id === viewButton.dataset.viewInvoice),
+      );
+    if (pdfButton)
+      downloadInvoiceByRow(
+        rows.find((x) => x.id === pdfButton.dataset.pdfInvoice),
+        pdfButton,
+      );
+    if (voidButton)
+      voidInvoice(rows.find((x) => x.id === voidButton.dataset.void));
   };
 }
 function invoiceTable(rows) {
   if (!rows.length)
     return `<div class="empty"><strong>لا توجد فواتير</strong>ابدأ من نقطة البيع.</div>`;
-  return `<div class="table-wrap"><table class="data-table"><thead><tr><th>الفاتورة</th><th>التاريخ</th><th>الزبون</th><th>الدفع</th><th>الصافي</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHTML(row.invoiceNo)}</td><td>${dateText(row.createdAt)}</td><td>${escapeHTML(row.customerName)}</td><td>${escapeHTML(row.paymentMethod)}</td><td>${money(row.netTotal)}</td><td><span class="badge ${row.status === `ملغاة` ? `danger` : `success`}">${escapeHTML(row.status)}</span></td><td>${row.status !== `ملغاة` && can(state.user, `invoices`, `void`) ? `<button class="btn danger small" data-void="${row.id}">إلغاء</button>` : `—`}</td></tr>`).join(``)}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="data-table"><thead><tr><th>الفاتورة</th><th>التاريخ</th><th>الزبون</th><th>الدفع</th><th>الصافي</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${escapeHTML(row.invoiceNo)}</td><td>${dateText(row.createdAt)}</td><td>${escapeHTML(row.customerName)}</td><td>${escapeHTML(row.paymentMethod)}</td><td>${money(row.netTotal)}</td><td><span class="badge ${row.status === `ملغاة` ? `danger` : `success`}">${escapeHTML(row.status)}</span></td><td><div class="invoice-actions"><button class="btn ghost small invoice-eye" type="button" data-view-invoice="${row.id}" title="مشاهدة الفاتورة" aria-label="مشاهدة الفاتورة">👁</button>${can(state.user, `invoices`, `print`) ? `<button class="btn ghost small pdf-button" type="button" data-pdf-invoice="${row.id}" title="تنزيل PDF">PDF</button>` : ``}${row.status !== `ملغاة` && can(state.user, `invoices`, `void`) ? `<button class="btn danger small" type="button" data-void="${row.id}">إلغاء</button>` : ``}</div></td></tr>`).join(``)}</tbody></table></div>`;
+}
+async function loadInvoiceData(row) {
+  if (!row) throw new Error(`الفاتورة غير موجودة`);
+  if (state.cache.invoiceDetails?.[row.id])
+    return state.cache.invoiceDetails[row.id];
+  const itemsSnap = await getDocs(
+    query(collection(db, `saleItems`), where(`saleId`, `==`, row.id)),
+  );
+  const items = itemsSnap.docs
+    .map((item) => ({ id: item.id, ...item.data() }))
+    .filter((item) => !item.isDeleted)
+    .map((item) => ({
+      ...item,
+      name: item.itemName,
+      price: Number(item.unitPrice || 0),
+      quantity: Number(item.quantity || 0),
+    }));
+  const data = {
+    ...row,
+    gross: Number(
+      row.grossTotal ??
+        items.reduce((sum, item) => sum + item.quantity * item.price, 0),
+    ),
+    discount: Number(row.discount || 0),
+    net: Number(row.netTotal || 0),
+    items,
+  };
+  state.cache.invoiceDetails[row.id] = data;
+  return data;
+}
+function invoiceMoment(value) {
+  const date = dateValue(value) || new Date();
+  return Number.isNaN(date.valueOf()) ? `—` : date.toLocaleString(`ar-JO`);
+}
+function invoiceDocumentHTML(data) {
+  return `<article class="invoice-document" dir="rtl"><header class="invoice-brand"><img crossorigin="anonymous" src="${LOGO_URL}" alt="شعار الأصيل"><div><p>الأصيل للإطارات والزيوت المعدنية</p><h2>${escapeHTML(state.settings.shopName)}</h2><span>فاتورة مبيعات</span></div></header><div class="invoice-meta"><div><small>رقم الفاتورة</small><strong>${escapeHTML(data.invoiceNo)}</strong></div><div><small>التاريخ والوقت</small><strong>${invoiceMoment(data.createdAt)}</strong></div><div><small>الزبون</small><strong>${escapeHTML(data.customerName || `زبون نقدي`)}</strong></div><div><small>طريقة الدفع</small><strong>${escapeHTML(data.paymentMethod || `—`)}</strong></div></div>${data.status === `ملغاة` ? `<div class="invoice-cancelled">فاتورة ملغاة</div>` : ``}<div class="invoice-items"><table><thead><tr><th>المادة أو الخدمة</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>${data.items.map((item) => `<tr><td>${escapeHTML(item.name)}</td><td>${item.quantity}</td><td>${money(item.price)}</td><td>${money(item.quantity * item.price)}</td></tr>`).join(``)}</tbody></table></div><div class="invoice-summary"><div><span>${data.discount > 0 ? `الإجمالي قبل الخصم` : `الإجمالي`}</span><strong>${money(data.gross)}</strong></div>${data.discount > 0 ? `<div class="discount"><span>الخصم</span><strong>− ${money(data.discount)}</strong></div>` : ``}<div class="grand-total"><span>${data.discount > 0 ? `الصافي` : `المبلغ المطلوب`}</span><strong>${money(data.net)}</strong></div></div>${data.notes ? `<div class="invoice-notes"><strong>ملاحظات</strong><p>${escapeHTML(data.notes)}</p></div>` : ``}<footer><span>شكرًا لاختياركم الأصيل</span><small>خدمتكم وثقتكم مسؤوليتنا</small></footer></article>`;
+}
+async function openInvoicePreview(row) {
+  const dialog = $(`#entity-dialog`);
+  const saveButton = $(`#dialog-save`);
+  const closeButton = dialog.querySelector(`footer [data-close-dialog]`);
+  $(`#dialog-title`).textContent = `معاينة الفاتورة ${row?.invoiceNo || ``}`;
+  $(`#dialog-body`).innerHTML =
+    `<div class="empty"><div class="spinner"></div><strong>جاري تحميل الفاتورة</strong></div>`;
+  saveButton.classList.add(`hidden`);
+  closeButton.textContent = `إغلاق`;
+  showDialog(dialog);
+  const resetDialog = () => {
+    saveButton.textContent = `حفظ`;
+    saveButton.classList.remove(`hidden`);
+    saveButton.disabled = false;
+    closeButton.textContent = `إلغاء`;
+  };
+  dialog.addEventListener(`close`, resetDialog, { once: true });
+  try {
+    const data = await loadInvoiceData(row);
+    if (!dialog.open) return;
+    $(`#dialog-body`).innerHTML = invoiceDocumentHTML(data);
+    saveButton.textContent = `تنزيل PDF`;
+    saveButton.classList.remove(`hidden`);
+    saveButton.onclick = () => downloadInvoicePDF(data, saveButton);
+  } catch (error) {
+    $(`#dialog-body`).innerHTML =
+      `<div class="empty"><strong>تعذر تحميل الفاتورة</strong>${escapeHTML(readableError(error))}</div>`;
+  }
+}
+async function downloadInvoiceByRow(row, button) {
+  try {
+    const data = await loadInvoiceData(row);
+    await downloadInvoicePDF(data, button);
+  } catch (error) {
+    toast(readableError(error), `error`);
+  }
+}
+function loadPDFLibrary(name, source, ready) {
+  if (ready()) return Promise.resolve();
+  const existing = document.querySelector(`script[data-pdf-library="${name}"]`);
+  if (existing) existing.remove();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement(`script`);
+    script.src = source;
+    script.dataset.pdfLibrary = name;
+    script.onload = () =>
+      ready() ? resolve() : reject(new Error(`تعذر تشغيل أداة PDF`));
+    script.onerror = () => reject(new Error(`تعذر تحميل أداة PDF`));
+    document.head.append(script);
+  });
+}
+async function ensurePDFLibraries() {
+  await loadPDFLibrary(
+    `html2canvas`,
+    `https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js`,
+    () => typeof window.html2canvas === `function`,
+  );
+  await loadPDFLibrary(
+    `jspdf`,
+    `https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js`,
+    () => Boolean(window.jspdf?.jsPDF),
+  );
+}
+async function waitForInvoiceImages(element) {
+  await Promise.all(
+    [...element.querySelectorAll(`img`)].map(
+      (image) =>
+        new Promise((resolve) => {
+          if (image.complete) resolve();
+          else {
+            image.onload = resolve;
+            image.onerror = resolve;
+          }
+        }),
+    ),
+  );
+}
+async function downloadInvoicePDF(data, button = null) {
+  const originalLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = `جاري إنشاء PDF…`;
+  }
+  const capture = document.createElement(`div`);
+  capture.className = `pdf-capture`;
+  capture.innerHTML = invoiceDocumentHTML(data);
+  document.body.append(capture);
+  try {
+    await ensurePDFLibraries();
+    if (document.fonts) await document.fonts.ready;
+    await waitForInvoiceImages(capture);
+    const canvas = await window.html2canvas(
+      capture.querySelector(`.invoice-document`),
+      {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: `#ffffff`,
+      },
+    );
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: `portrait`,
+      unit: `mm`,
+      format: `a4`,
+      compress: true,
+    });
+    const margin = 10;
+    const contentWidth = 190;
+    const pageHeight = 277;
+    const sliceHeight = Math.floor((canvas.width * pageHeight) / contentWidth);
+    let offset = 0;
+    let page = 0;
+    while (offset < canvas.height) {
+      const height = Math.min(sliceHeight, canvas.height - offset);
+      const pageCanvas = document.createElement(`canvas`);
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = height;
+      pageCanvas
+        .getContext(`2d`)
+        .drawImage(
+          canvas,
+          0,
+          offset,
+          canvas.width,
+          height,
+          0,
+          0,
+          canvas.width,
+          height,
+        );
+      if (page > 0) pdf.addPage();
+      const renderedHeight = (height * contentWidth) / canvas.width;
+      pdf.addImage(
+        pageCanvas.toDataURL(`image/jpeg`, 0.94),
+        `JPEG`,
+        margin,
+        margin,
+        contentWidth,
+        renderedHeight,
+        undefined,
+        `FAST`,
+      );
+      offset += height;
+      page += 1;
+    }
+    pdf.save(`${data.invoiceNo || `invoice`}.pdf`);
+    toast(`تم تنزيل الفاتورة PDF`);
+  } catch (error) {
+    console.error(`PDF generation failed`, error);
+    toast(`تعذر إنشاء PDF. تحقق من الإنترنت ثم أعد المحاولة`, `error`);
+  } finally {
+    capture.remove();
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
 }
 async function voidInvoice(row) {
   const ok = await confirmAction(
