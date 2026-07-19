@@ -1,15 +1,200 @@
-import{firebaseConfig,auth,db}from'./firebase.js?v=20260719-5';
-import{initializeApp,deleteApp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import{getAuth,createUserWithEmailAndPassword,deleteUser,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
-import{doc,collection,getDoc,setDoc,writeBatch,serverTimestamp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+import { firebaseConfig, auth, db } from "./firebase.js?v=20260719-7";
+import {
+  initializeApp,
+  deleteApp,
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  deleteUser,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+import {
+  doc,
+  collection,
+  getDoc,
+  setDoc,
+  writeBatch,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-export const DEFAULT_ADMIN_PERMISSIONS={dashboard:[`view`],pos:[`view`,`create`,`print`,`discount`,`seeCost`,`seeProfit`],products:[`view`,`create`,`edit`,`delete`,`export`,`seeCost`,`seeProfit`],services:[`view`,`create`,`edit`,`delete`],offers:[`view`,`create`,`edit`,`delete`],purchases:[`view`,`create`,`edit`,`export`,`seeCost`],rentals:[`view`,`create`,`edit`,`print`],customers:[`view`,`create`,`edit`,`delete`,`export`],suppliers:[`view`,`create`,`edit`,`delete`,`export`],employees:[`view`,`create`,`edit`,`delete`],salaries:[`view`,`create`,`edit`,`delete`],advances:[`view`,`create`,`edit`,`delete`],expenses:[`view`,`create`,`edit`,`delete`,`export`],invoices:[`view`,`edit`,`void`,`print`,`export`,`seeProfit`],dailyClosings:[`view`,`create`,`edit`,`export`],reports:[`view`,`export`,`print`,`seeCost`,`seeProfit`],users:[`view`,`create`,`edit`,`delete`],settings:[`view`,`edit`],auditLogs:[`view`,`export`]};
+export const DEFAULT_ADMIN_PERMISSIONS = {
+  dashboard: [`view`],
+  pos: [`view`, `create`, `print`, `discount`, `seeCost`, `seeProfit`],
+  products: [
+    `view`,
+    `create`,
+    `edit`,
+    `delete`,
+    `export`,
+    `seeCost`,
+    `seeProfit`,
+  ],
+  services: [`view`, `create`, `edit`, `delete`],
+  offers: [`view`, `create`, `edit`, `delete`],
+  purchases: [`view`, `create`, `edit`, `export`, `seeCost`],
+  rentals: [`view`, `create`, `edit`, `print`],
+  customers: [`view`, `create`, `edit`, `delete`, `export`],
+  suppliers: [`view`, `create`, `edit`, `delete`, `export`],
+  employees: [`view`, `create`, `edit`, `delete`],
+  salaries: [`view`, `create`, `edit`, `delete`],
+  advances: [`view`, `create`, `edit`, `delete`],
+  expenses: [`view`, `create`, `edit`, `delete`, `export`],
+  invoices: [`view`, `edit`, `void`, `print`, `export`, `seeProfit`],
+  reports: [`view`, `export`, `print`, `seeCost`, `seeProfit`],
+  users: [`view`, `create`, `edit`, `delete`],
+  settings: [`view`, `edit`],
+  auditLogs: [`view`, `export`],
+};
 
-export async function isInitialized(){const snap=await getDoc(doc(db,`settings`,`bootstrap`));return snap.exists()}
-export async function setupFirstAdmin({name,email,password,shopName}){if(await isInitialized())throw new Error(`تمت تهيئة النظام مسبقا`);const credential=await createUserWithEmailAndPassword(auth,email,password);const uid=credential.user.uid;const batch=writeBatch(db);batch.set(doc(db,`users`,uid),{name,email,role:`admin`,active:true,permissions:DEFAULT_ADMIN_PERMISSIONS,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy:uid,updatedBy:uid,isDeleted:false});batch.set(doc(db,`settings`,`bootstrap`),{initialized:true,adminUid:uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy:uid});batch.set(doc(db,`settings`,`general`),{shopName,currency:`JOD`,invoicePrefix:`INV`,allowNegativeStock:false,lowStockThreshold:5,rentalLateFee:0,themeColor:`#970E16`,logoUrl:`https://raw.githubusercontent.com/BaselGhanem/Odai/refs/heads/main/Gemini_Generated_Image_102ux0102ux0102u.png`,paymentMethods:[`كاش`,`بطاقة`,`CliQ`,`تحويل بنكي`,`آجل`],productCategories:[`كوشوك جديد`,`كوشوك مستعمل`,`زيوت`,`اكسسوارات`,`زينة سيارات`,`فرش سيارات`,`مواد تأجير`,`أخرى`],serviceCategories:[`غيار زيت`,`ترصيص`,`بناشر`,`تركيب`,`فحص`,`أخرى`],expenseCategories:[`إيجار`,`كهرباء`,`ماء`,`إنترنت`,`رواتب`,`صيانة`,`نقل`,`مصاريف يومية`,`أخرى`],createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy:uid});[`رقعة عادية`,`رقعة حرارية`,`رقعة كبيرة`,`رقعة صغيرة`].forEach(patchName=>batch.set(doc(collection(db,`patchTypes`)),{name:patchName,cost:0,price:0,active:true,notes:``,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy:uid,isDeleted:false}));await batch.commit();return credential.user}
-export async function login(email,password){return signInWithEmailAndPassword(auth,email,password)}
-export async function logout(){return signOut(auth)}
-export async function createManagedUser({name,email,password,role,active,permissions,createdBy}){const secondaryApp=initializeApp(firebaseConfig,`user-admin-${Date.now()}`);const secondaryAuth=getAuth(secondaryApp);let credential=null;try{credential=await createUserWithEmailAndPassword(secondaryAuth,email,password);const uid=credential.user.uid;await setDoc(doc(db,`users`,uid),{name,email:email.toLowerCase(),role,active,permissions,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),createdBy,updatedBy:createdBy,isDeleted:false});await signOut(secondaryAuth);return uid}catch(error){if(credential?.user)await deleteUser(credential.user).catch(()=>{});throw error}finally{await deleteApp(secondaryApp).catch(()=>{})}}
-export function watchAuth(callback){return onAuthStateChanged(auth,callback)}
-export async function getUserProfile(uid){const snap=await getDoc(doc(db,`users`,uid));if(!snap.exists())throw new Error(`حساب المستخدم غير معرف في النظام`);const profile={id:snap.id,...snap.data()};if(profile.isDeleted||profile.active===false)throw new Error(`هذا الحساب موقوف`);return profile}
-export function can(user,module,action=`view`){if(user?.role===`admin`)return true;return Boolean(user?.permissions?.[module]?.includes(action))}
+export async function isInitialized() {
+  const snap = await getDoc(doc(db, `settings`, `bootstrap`));
+  return snap.exists();
+}
+export async function setupFirstAdmin({ name, email, password, shopName }) {
+  if (await isInitialized()) throw new Error(`تمت تهيئة النظام مسبقا`);
+  const credential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
+  const uid = credential.user.uid;
+  const batch = writeBatch(db);
+  batch.set(doc(db, `users`, uid), {
+    name,
+    email,
+    role: `admin`,
+    active: true,
+    permissions: DEFAULT_ADMIN_PERMISSIONS,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy: uid,
+    updatedBy: uid,
+    isDeleted: false,
+  });
+  batch.set(doc(db, `settings`, `bootstrap`), {
+    initialized: true,
+    adminUid: uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy: uid,
+  });
+  batch.set(doc(db, `settings`, `general`), {
+    shopName,
+    currency: `JOD`,
+    invoicePrefix: `INV`,
+    allowNegativeStock: false,
+    lowStockThreshold: 5,
+    rentalLateFee: 0,
+    themeColor: `#970E16`,
+    logoUrl: `https://raw.githubusercontent.com/BaselGhanem/Odai/refs/heads/main/Gemini_Generated_Image_102ux0102ux0102u.png`,
+    paymentMethods: [`كاش`, `بطاقة`, `CliQ`, `تحويل بنكي`, `آجل`],
+    productCategories: [
+      `كوشوك جديد`,
+      `كوشوك مستعمل`,
+      `زيوت`,
+      `اكسسوارات`,
+      `زينة سيارات`,
+      `فرش سيارات`,
+      `مواد تأجير`,
+      `أخرى`,
+    ],
+    serviceCategories: [`غيار زيت`, `ترصيص`, `بناشر`, `تركيب`, `فحص`, `أخرى`],
+    expenseCategories: [
+      `إيجار`,
+      `كهرباء`,
+      `ماء`,
+      `إنترنت`,
+      `رواتب`,
+      `صيانة`,
+      `نقل`,
+      `مصاريف يومية`,
+      `أخرى`,
+    ],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy: uid,
+  });
+  [`رقعة عادية`, `رقعة حرارية`, `رقعة كبيرة`, `رقعة صغيرة`].forEach(
+    (patchName) =>
+      batch.set(doc(collection(db, `patchTypes`)), {
+        name: patchName,
+        cost: 0,
+        price: 0,
+        active: true,
+        notes: ``,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: uid,
+        isDeleted: false,
+      }),
+  );
+  await batch.commit();
+  return credential.user;
+}
+export async function login(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+export async function logout() {
+  return signOut(auth);
+}
+export async function createManagedUser({
+  name,
+  email,
+  password,
+  role,
+  active,
+  permissions,
+  createdBy,
+}) {
+  const secondaryApp = initializeApp(
+    firebaseConfig,
+    `user-admin-${Date.now()}`,
+  );
+  const secondaryAuth = getAuth(secondaryApp);
+  let credential = null;
+  try {
+    credential = await createUserWithEmailAndPassword(
+      secondaryAuth,
+      email,
+      password,
+    );
+    const uid = credential.user.uid;
+    await setDoc(doc(db, `users`, uid), {
+      name,
+      email: email.toLowerCase(),
+      role,
+      active,
+      permissions,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy,
+      updatedBy: createdBy,
+      isDeleted: false,
+    });
+    await signOut(secondaryAuth);
+    return uid;
+  } catch (error) {
+    if (credential?.user) await deleteUser(credential.user).catch(() => {});
+    throw error;
+  } finally {
+    await deleteApp(secondaryApp).catch(() => {});
+  }
+}
+export function watchAuth(callback) {
+  return onAuthStateChanged(auth, callback);
+}
+export async function getUserProfile(uid) {
+  const snap = await getDoc(doc(db, `users`, uid));
+  if (!snap.exists()) throw new Error(`حساب المستخدم غير معرف في النظام`);
+  const profile = { id: snap.id, ...snap.data() };
+  if (profile.isDeleted || profile.active === false)
+    throw new Error(`هذا الحساب موقوف`);
+  return profile;
+}
+export function can(user, module, action = `view`) {
+  if (user?.role === `admin`) return true;
+  return Boolean(user?.permissions?.[module]?.includes(action));
+}
