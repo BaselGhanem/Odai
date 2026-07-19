@@ -1,4 +1,4 @@
-import{auth,db}from'./firebase.js';
+import{auth,db}from'./firebase.js?v=20260719-3';
 import{createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import{doc,collection,getDoc,writeBatch,serverTimestamp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
