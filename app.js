@@ -1,5 +1,5 @@
-import{db,auth}from'./firebase.js';
-import{watchAuth,isInitialized,setupFirstAdmin,login,logout,getUserProfile,can,DEFAULT_ADMIN_PERMISSIONS}from'./auth.js';
+import{db,auth}from'./firebase.js?v=20260719-3';
+import{watchAuth,isInitialized,setupFirstAdmin,login,logout,getUserProfile,can,DEFAULT_ADMIN_PERMISSIONS}from'./auth.js?v=20260719-3';
 import{collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,query,where,orderBy,limit,serverTimestamp,writeBatch,runTransaction,increment,Timestamp}from'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const $=selector=>document.querySelector(selector);const $$=selector=>[...document.querySelectorAll(selector)];
@@ -7,7 +7,8 @@ const state={user:null,settings:{currency:`JOD`,shopName:`نظام عدي`,allow
 const money=value=>`${Number(value||0).toLocaleString(`ar-JO`,{minimumFractionDigits:2,maximumFractionDigits:2})} د.أ`;
 const dateValue=value=>value?.toDate?value.toDate():value?new Date(value):null;
 const dateText=value=>{const d=dateValue(value);return d&&!Number.isNaN(d.valueOf())?d.toLocaleDateString(`ar-JO`):`—`};
-const escapeHTML=value=>String(value??``).replace(/[&<>'"]/g,char=>({[`&`]:`&amp;`,`<`:`&lt;`,`>`:`&gt;`,[`'`]:`&#39;`,[`"`]:`&quot;`}[char]));
+const HTML_ENTITIES=new Map([[`&`,`&amp;`],[`<`,`&lt;`],[`>`,`&gt;`],[`'`,`&#39;`],[`"`,`&quot;`]]);
+const escapeHTML=value=>String(value??``).replace(/[&<>'"]/g,char=>HTML_ENTITIES.get(char));
 const todayISO=()=>new Date().toISOString().slice(0,10);const monthStart=()=>`${todayISO().slice(0,7)}-01`;
 const NAV=[[`dashboard`,`⌂`,`لوحة التحكم`],[`pos`,`▣`,`نقطة البيع`],[`products`,`◫`,`المنتجات`],[`services`,`⚙`,`الخدمات`],[`offers`,`★`,`العروض`],[`purchases`,`⇣`,`المشتريات`],[`rentals`,`↔`,`الإيجارات`],[`customers`,`♙`,`الزبائن`],[`suppliers`,`♜`,`الموردون`],[`employees`,`♟`,`الموظفون`],[`salaries`,`₿`,`الرواتب`],[`advances`,`⇢`,`السلف`],[`expenses`,`−`,`المصاريف`],[`invoices`,`▤`,`الفواتير`],[`dailyClosings`,`✓`,`الإغلاق اليومي`],[`reports`,`▥`,`التقارير`],[`users`,`♚`,`المستخدمون`],[`settings`,`⚙`,`الإعدادات`],[`auditLogs`,`◷`,`سجل التدقيق`]];
 const META={
