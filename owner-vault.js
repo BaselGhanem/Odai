@@ -12,14 +12,19 @@ import {
   getDoc,
   getDocsFromServer,
   limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
+  Timestamp,
+  where,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const RESET_PHRASE = `تصفير بيانات الأصيل`;
 const BATCH_SIZE = 400;
+const LOGIN_PAGE_SIZE = 60;
 const COLLECTIONS = [
   { key: `saleItems`, label: `تفاصيل المبيعات` },
   { key: `sales`, label: `المبيعات والفواتير` },
@@ -48,6 +53,12 @@ const state = {
   counts: new Map(),
   countsReady: false,
   resetInProgress: false,
+  loginLogs: [],
+  loginCursor: null,
+  loginDone: false,
+  loginLoading: false,
+  loginTotal: 0,
+  loginToday: 0,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -78,10 +89,32 @@ const els = {
   progressDetail: $(`#progress-detail`),
   resetError: $(`#reset-error`),
   logout: $(`#owner-logout`),
+  loginList: $(`#login-log-list`),
+  loginTotal: $(`#login-total`),
+  loginUsers: $(`#login-users`),
+  loginToday: $(`#login-today`),
+  loginSearch: $(`#login-search`),
+  loginMethod: $(`#login-method-filter`),
+  loginNote: $(`#login-log-note`),
+  loginMore: $(`#load-more-logins`),
+  loginRefresh: $(`#refresh-login-log`),
+  loginExport: $(`#export-login-log`),
 };
 
 const formatNumber = (value) =>
   new Intl.NumberFormat(`ar-JO`).format(Number(value) || 0);
+const escapeHTML = (value) =>
+  String(value ?? ``).replace(
+    /[&<>'"]/g,
+    (char) =>
+      ({
+        "&": `&amp;`,
+        "<": `&lt;`,
+        ">": `&gt;`,
+        "'": `&#39;`,
+        '"': `&quot;`,
+      })[char],
+  );
 
 function readableError(error) {
   const code = error?.code || ``;
@@ -116,6 +149,194 @@ function formatTimestamp(timestamp) {
     dateStyle: `medium`,
     timeStyle: `short`,
   }).format(timestamp.toDate());
+}
+
+function loginMoment(timestamp) {
+  if (!timestamp?.toDate) return `قيد المزامنة`;
+  return new Intl.DateTimeFormat(`ar-JO`, {
+    dateStyle: `medium`,
+    timeStyle: `short`,
+  }).format(timestamp.toDate());
+}
+
+function loginMethodLabel(method) {
+  if (method === `password`) return `كلمة المرور`;
+  if (method === `setup`) return `التهيئة الأولى`;
+  return `جلسة محفوظة`;
+}
+
+function loginMethodClass(method) {
+  if (method === `password`) return `password`;
+  if (method === `setup`) return `setup`;
+  return `saved`;
+}
+
+function loginMatches(row) {
+  const method = els.loginMethod.value;
+  if (method !== `all` && row.method !== method) return false;
+  const term = els.loginSearch.value.trim().toLowerCase();
+  if (!term) return true;
+  return [
+    row.userName,
+    row.email,
+    row.deviceType,
+    row.browser,
+    row.platform,
+    row.appMode,
+    row.screenSize,
+  ].some((value) =>
+    String(value || ``)
+      .toLowerCase()
+      .includes(term),
+  );
+}
+
+function renderLoginLogs() {
+  const rows = state.loginLogs.filter(loginMatches);
+  const uniqueUsers = new Set(
+    state.loginLogs.map((row) => row.userId).filter(Boolean),
+  ).size;
+  els.loginTotal.textContent = formatNumber(state.loginTotal);
+  els.loginUsers.textContent = formatNumber(uniqueUsers);
+  els.loginToday.textContent = formatNumber(state.loginToday);
+  els.loginNote.textContent = state.loginLoading
+    ? `جاري تحميل سجل الدخول…`
+    : `تم تحميل ${formatNumber(state.loginLogs.length)} من ${formatNumber(state.loginTotal)} عملية دخول.`;
+  els.loginMore.classList.toggle(
+    `hidden`,
+    state.loginDone || state.loginLoading,
+  );
+  els.loginMore.disabled = state.loginLoading;
+  if (!rows.length) {
+    els.loginList.innerHTML = `<div class="login-log-empty"><strong>${state.loginLoading ? `جاري التحميل…` : `لا توجد نتائج مطابقة`}</strong><span>${state.loginLoading ? `يتم قراءة السجل بأمان` : `غيّر البحث أو طريقة الدخول`}</span></div>`;
+    return;
+  }
+  els.loginList.innerHTML = rows
+    .map((row) => {
+      const userName = row.userName || `مستخدم`;
+      return `<article class="login-log-row">
+        <div class="login-user"><span>${escapeHTML(userName.trim().charAt(0) || `م`)}</span><div><strong>${escapeHTML(userName)}</strong><small>${escapeHTML(row.email || `—`)}</small></div></div>
+        <time>${escapeHTML(loginMoment(row.createdAt))}</time>
+        <span class="login-method ${loginMethodClass(row.method)}">${loginMethodLabel(row.method)}</span>
+        <div class="login-device"><strong>${escapeHTML(row.deviceType || `جهاز غير معروف`)}</strong><small>${escapeHTML(row.appMode || row.platform || `—`)} · ${escapeHTML(row.screenSize || `—`)}</small></div>
+        <div class="login-browser"><strong>${escapeHTML(row.browser || `متصفح آخر`)}</strong><small>${escapeHTML(row.platform || `—`)}</small></div>
+      </article>`;
+    })
+    .join(``);
+}
+
+async function refreshLoginCounters() {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const [totalSnapshot, todaySnapshot] = await Promise.all([
+    getCountFromServer(collection(db, `loginLogs`)),
+    getCountFromServer(
+      query(
+        collection(db, `loginLogs`),
+        where(`createdAt`, `>=`, Timestamp.fromDate(startOfToday)),
+      ),
+    ),
+  ]);
+  state.loginTotal = totalSnapshot.data().count;
+  state.loginToday = todaySnapshot.data().count;
+}
+
+async function loadLoginLogs({ reset = false } = {}) {
+  if (state.loginLoading || (!reset && state.loginDone)) return;
+  state.loginLoading = true;
+  if (reset) {
+    state.loginLogs = [];
+    state.loginCursor = null;
+    state.loginDone = false;
+    state.loginTotal = 0;
+    state.loginToday = 0;
+  }
+  renderLoginLogs();
+  els.loginRefresh.disabled = true;
+  try {
+    const baseQuery = [
+      collection(db, `loginLogs`),
+      orderBy(`createdAt`, `desc`),
+      limit(LOGIN_PAGE_SIZE),
+    ];
+    if (state.loginCursor) baseQuery.push(startAfter(state.loginCursor));
+    const [snapshot] = await Promise.all([
+      getDocsFromServer(query(...baseQuery)),
+      reset ? refreshLoginCounters() : Promise.resolve(),
+    ]);
+    state.loginLogs.push(
+      ...snapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    );
+    state.loginCursor = snapshot.docs.at(-1) || state.loginCursor;
+    state.loginDone = snapshot.size < LOGIN_PAGE_SIZE;
+  } catch (error) {
+    showAlert(`تعذر تحميل سجل الدخول: ${readableError(error)}`);
+  } finally {
+    state.loginLoading = false;
+    els.loginRefresh.disabled = false;
+    renderLoginLogs();
+  }
+}
+
+function csvCell(value) {
+  return `"${String(value ?? ``).replaceAll(`"`, `""`)}"`;
+}
+
+async function exportLoginLogs() {
+  const originalLabel = els.loginExport.textContent;
+  els.loginExport.disabled = true;
+  els.loginExport.textContent = `جاري التصدير…`;
+  try {
+    const snapshot = await getDocsFromServer(
+      query(collection(db, `loginLogs`), orderBy(`createdAt`, `desc`)),
+    );
+    const rows = snapshot.docs.map((item) => item.data());
+    const headers = [
+      `اسم المستخدم`,
+      `البريد الإلكتروني`,
+      `الدور`,
+      `وقت الدخول`,
+      `طريقة الدخول`,
+      `نوع الجهاز`,
+      `المتصفح`,
+      `النظام`,
+      `حجم الشاشة`,
+      `وضع الاستخدام`,
+      `معرف الجهاز`,
+    ];
+    const lines = rows.map((row) =>
+      [
+        row.userName,
+        row.email,
+        row.role,
+        row.createdAt?.toDate?.().toISOString() || ``,
+        loginMethodLabel(row.method),
+        row.deviceType,
+        row.browser,
+        row.platform,
+        row.screenSize,
+        row.appMode,
+        row.deviceId,
+      ]
+        .map(csvCell)
+        .join(`,`),
+    );
+    const blob = new Blob(
+      [`\uFEFF${headers.map(csvCell).join(`,`)}\n${lines.join(`\n`)}`],
+      { type: `text/csv;charset=utf-8` },
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement(`a`);
+    link.href = url;
+    link.download = `login-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    showAlert(`تعذر تصدير سجل الدخول: ${readableError(error)}`);
+  } finally {
+    els.loginExport.disabled = false;
+    els.loginExport.textContent = originalLabel;
+  }
 }
 
 function renderCollectionRows(loading = false) {
@@ -280,7 +501,13 @@ async function runReset() {
         lastResetAt: serverTimestamp(),
         lastResetBy: auth.currentUser.uid,
         lastResetByName: state.profile?.name || auth.currentUser.email,
-        preservedCollections: [`users`, `settings`, `roles`, `permissions`],
+        preservedCollections: [
+          `users`,
+          `settings`,
+          `roles`,
+          `permissions`,
+          `loginLogs`,
+        ],
       },
       { merge: true },
     );
@@ -361,7 +588,11 @@ async function authorize(user) {
     els.denied.classList.add(`hidden`);
     els.app.classList.remove(`hidden`);
     renderCollectionRows(true);
-    await Promise.all([loadResetState(), loadCounts()]);
+    await Promise.all([
+      loadResetState(),
+      loadCounts(),
+      loadLoginLogs({ reset: true }),
+    ]);
   } catch (error) {
     showDenied(readableError(error));
   }
@@ -375,6 +606,13 @@ els.confirm.addEventListener(`click`, runReset);
   input.addEventListener(`input`, updateConfirmationState),
 );
 els.checkbox.addEventListener(`change`, updateConfirmationState);
+els.loginSearch.addEventListener(`input`, renderLoginLogs);
+els.loginMethod.addEventListener(`change`, renderLoginLogs);
+els.loginMore.addEventListener(`click`, () => loadLoginLogs());
+els.loginRefresh.addEventListener(`click`, () =>
+  loadLoginLogs({ reset: true }),
+);
+els.loginExport.addEventListener(`click`, exportLoginLogs);
 els.dialog.addEventListener(`cancel`, (event) => {
   if (state.resetInProgress) event.preventDefault();
 });
