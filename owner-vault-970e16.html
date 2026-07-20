@@ -24,8 +24,8 @@
     />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="app-icon-192.png" />
-    <link rel="stylesheet" href="styles.css?v=20260719-16" />
-    <link rel="stylesheet" href="owner-vault.css?v=20260719-2" />
+    <link rel="stylesheet" href="styles.css?v=20260720-17" />
+    <link rel="stylesheet" href="owner-vault.css?v=20260720-3" />
     <script defer src="pwa.js?v=20260719-2"></script>
   </head>
   <body class="owner-vault-body">
@@ -159,6 +159,7 @@
                 <li>مستندات المستخدمين وصلاحياتهم</li>
                 <li>إعدادات المحل والهوية والفاتورة</li>
                 <li>تهيئة النظام والحساب الرئيسي</li>
+                <li>سجل عمليات الدخول إلى النظام</li>
               </ul>
             </article>
 
@@ -185,6 +186,84 @@
               <small id="reset-readiness">يجب تحميل أعداد السجلات أولًا.</small>
             </article>
           </aside>
+        </section>
+
+        <section class="owner-panel login-log-panel">
+          <header class="owner-panel-head login-log-head">
+            <div>
+              <p class="owner-eyebrow">أمان ومتابعة الوصول</p>
+              <h2>سجل عمليات الدخول</h2>
+              <p>
+                يعرض دخول المستخدمين إلى النظام فقط، دون خلطه مع أي عمليات
+                تشغيلية أخرى.
+              </p>
+            </div>
+            <div class="login-log-actions">
+              <button
+                id="export-login-log"
+                class="owner-btn owner-btn-quiet"
+                type="button"
+              >
+                تصدير CSV
+              </button>
+              <button
+                id="refresh-login-log"
+                class="owner-btn owner-btn-quiet"
+                type="button"
+              >
+                تحديث السجل
+              </button>
+            </div>
+          </header>
+          <div class="login-log-summary">
+            <div>
+              <small>إجمالي عمليات الدخول</small
+              ><strong id="login-total">—</strong>
+            </div>
+            <div>
+              <small>مستخدمون ضمن المعروض</small
+              ><strong id="login-users">—</strong>
+            </div>
+            <div>
+              <small>دخول اليوم</small><strong id="login-today">—</strong>
+            </div>
+          </div>
+          <div class="login-log-toolbar">
+            <label
+              >بحث في السجل
+              <input
+                id="login-search"
+                type="search"
+                placeholder="اسم المستخدم، البريد، الجهاز أو المتصفح…"
+              />
+            </label>
+            <label
+              >طريقة الدخول
+              <select id="login-method-filter">
+                <option value="all">جميع طرق الدخول</option>
+                <option value="password">كلمة المرور</option>
+                <option value="saved-session">جلسة محفوظة</option>
+                <option value="setup">التهيئة الأولى</option>
+              </select>
+            </label>
+          </div>
+          <div class="login-log-columns" aria-hidden="true">
+            <span>المستخدم</span><span>وقت الدخول</span><span>طريقة الدخول</span
+            ><span>الجهاز</span><span>المتصفح</span>
+          </div>
+          <div id="login-log-list" class="login-log-list" aria-live="polite">
+            <div class="login-log-empty">جاري تحميل سجل الدخول…</div>
+          </div>
+          <footer class="login-log-footer">
+            <span id="login-log-note">يعرض أحدث عمليات الدخول أولًا.</span>
+            <button
+              id="load-more-logins"
+              class="owner-btn owner-btn-quiet hidden"
+              type="button"
+            >
+              تحميل المزيد
+            </button>
+          </footer>
         </section>
       </main>
 
@@ -271,6 +350,6 @@
       </div>
     </dialog>
 
-    <script type="module" src="owner-vault.js?v=20260719-2"></script>
+    <script type="module" src="owner-vault.js?v=20260720-3"></script>
   </body>
 </html>
