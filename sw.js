@@ -1,14 +1,14 @@
 const CACHE_PREFIX = `odai-offline`;
-const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260719-16`;
-const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260719-16`;
+const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260720-17`;
+const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260720-17`;
 const SCOPE = self.registration.scope;
 
 const shellUrl = (path) => new URL(path, SCOPE).href;
 const CORE_ASSETS = [
   `./`,
   `./index.html`,
-  `./styles.css?v=20260719-16`,
-  `./app.js?v=20260719-15`,
+  `./styles.css?v=20260720-17`,
+  `./app.js?v=20260720-17`,
   `./auth.js?v=20260719-7`,
   `./firebase.js?v=20260719-7`,
   `./favicon.svg`,
@@ -17,8 +17,8 @@ const CORE_ASSETS = [
   `./app-icon-192.png`,
   `./app-icon-512.png`,
   `./owner-vault-970e16.html`,
-  `./owner-vault.css?v=20260719-2`,
-  `./owner-vault.js?v=20260719-2`,
+  `./owner-vault.css?v=20260720-3`,
+  `./owner-vault.js?v=20260720-3`,
 ].map(shellUrl);
 
 const OPTIONAL_ASSETS = [
