@@ -50,6 +50,15 @@ service cloud.firestore {
     match /advances/{id} { allow read: if has('advances','view') || has('reports','view'); allow create: if has('advances','create') && ownsMetadata(); allow update: if has('advances','edit'); allow delete: if superuser(); }
     match /stockMovements/{id} { allow read: if has('products','view') || has('reports','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
     match /cashMovements/{id} { allow read: if has('reports','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
+    match /loginLogs/{id} {
+      allow create: if active()
+                    && request.resource.data.event == 'login'
+                    && request.resource.data.status == 'success'
+                    && request.resource.data.userId == request.auth.uid
+                    && ownsMetadata();
+      allow read: if superuser();
+      allow update, delete: if false;
+    }
     match /auditLogs/{id} { allow read: if has('auditLogs','view'); allow create: if active() && ownsMetadata(); allow update: if false; allow delete: if superuser(); }
     match /offers/{id} { allow read: if active(); allow create: if has('offers','create') && ownsMetadata(); allow update: if has('offers','edit'); allow delete: if superuser(); }
     match /patchTypes/{id} { allow read: if active(); allow create: if (signedIn() && bootstrapMissing() && ownsMetadata()) || admin(); allow update: if admin(); allow delete: if superuser(); }
