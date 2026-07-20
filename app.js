@@ -79,6 +79,7 @@ const state = {
   reportRows: [],
   navGroup: null,
   setupInProgress: false,
+  loginMethod: null,
 };
 
 function deferredWriteError(error) {
@@ -774,6 +775,84 @@ async function audit(action, module, before = null, after = null) {
     });
   } catch (error) {
     console.warn(`Audit failed`, error);
+  }
+}
+function getDeviceId() {
+  const key = `odai-device-id`;
+  try {
+    let value = localStorage.getItem(key);
+    if (!value) {
+      value =
+        window.crypto?.randomUUID?.() ||
+        `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(key, value);
+    }
+    return value;
+  } catch {
+    return `unavailable`;
+  }
+}
+function loginDeviceInfo() {
+  const userAgent = navigator.userAgent || ``;
+  const deviceType = /iPhone|iPad|iPod/i.test(userAgent)
+    ? `iPhone / iPad`
+    : /Android/i.test(userAgent)
+      ? `هاتف Android`
+      : /Mobile/i.test(userAgent)
+        ? `هاتف`
+        : `كمبيوتر`;
+  const browser = /Edg/i.test(userAgent)
+    ? `Microsoft Edge`
+    : /OPR|Opera/i.test(userAgent)
+      ? `Opera`
+      : /Firefox|FxiOS/i.test(userAgent)
+        ? `Firefox`
+        : /CriOS|Chrome/i.test(userAgent)
+          ? `Google Chrome`
+          : /Safari/i.test(userAgent)
+            ? `Safari`
+            : `متصفح آخر`;
+  return {
+    deviceId: getDeviceId(),
+    deviceType,
+    browser,
+    platform: navigator.platform || `غير معروف`,
+    userAgent: userAgent.slice(0, 400),
+    screenSize: `${window.screen?.width || 0}×${window.screen?.height || 0}`,
+    language: navigator.language || `ar`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || `Asia/Amman`,
+    appMode: window.matchMedia(`(display-mode: standalone)`).matches
+      ? `تطبيق مثبت`
+      : `متصفح`,
+    connectionType: navigator.connection?.effectiveType || `غير معروف`,
+  };
+}
+async function recordLoginOnce(method = `saved-session`) {
+  if (!state.user?.id) return;
+  const sessionKey = `odai-login-recorded:${state.user.id}`;
+  try {
+    if (sessionStorage.getItem(sessionKey)) return;
+  } catch {}
+  try {
+    await addDoc(collection(db, `loginLogs`), {
+      event: `login`,
+      status: `success`,
+      method,
+      userId: state.user.id,
+      userName: state.user.name,
+      email: state.user.email || auth.currentUser?.email || ``,
+      role: state.user.role,
+      ...loginDeviceInfo(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: state.user.id,
+      isDeleted: false,
+    });
+    try {
+      sessionStorage.setItem(sessionKey, `1`);
+    } catch {}
+  } catch (error) {
+    console.warn(`Login log failed`, error);
   }
 }
 async function loadSettings() {
@@ -2433,6 +2512,8 @@ async function showApp(user) {
     : allowedNav()[0]?.[0];
   renderNav();
   await navigate(state.module);
+  void recordLoginOnce(state.loginMethod || `saved-session`);
+  state.loginMethod = null;
   void warmOfflineCache();
   void syncPendingWrites();
 }
@@ -2445,6 +2526,7 @@ $(`#auth-form`).onsubmit = async (event) => {
   try {
     if (state.setupMode) {
       state.setupInProgress = true;
+      state.loginMethod = `setup`;
       const user = await setupFirstAdmin({
         name: $(`#auth-name`).value.trim(),
         shopName: $(`#shop-name`).value.trim(),
@@ -2453,17 +2535,27 @@ $(`#auth-form`).onsubmit = async (event) => {
       });
       state.setupInProgress = false;
       await showApp(user);
-    } else
+    } else {
+      state.loginMethod = `password`;
       await login($(`#auth-email`).value.trim(), $(`#auth-password`).value);
+    }
   } catch (error) {
     state.setupInProgress = false;
+    state.loginMethod = null;
     errorBox.textContent = readableError(error);
     errorBox.classList.remove(`hidden`);
   } finally {
     submit.disabled = false;
   }
 };
-$(`#logout-btn`).onclick = logout;
+$(`#logout-btn`).onclick = async () => {
+  try {
+    if (state.user?.id)
+      sessionStorage.removeItem(`odai-login-recorded:${state.user.id}`);
+  } catch {}
+  state.loginMethod = null;
+  await logout();
+};
 $$(`[data-x-academy-whatsapp]`).forEach(
   (link) => (link.href = X_ACADEMY_WHATSAPP_URL),
 );
