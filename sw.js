@@ -1,6 +1,6 @@
 const CACHE_PREFIX = `odai-offline`;
-const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260723-19`;
-const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260723-19`;
+const SHELL_CACHE = `${CACHE_PREFIX}-shell-20260723-20`;
+const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-20260723-20`;
 const SCOPE = self.registration.scope;
 
 const shellUrl = (path) => new URL(path, SCOPE).href;
@@ -8,7 +8,7 @@ const CORE_ASSETS = [
   `./`,
   `./index.html`,
   `./styles.css?v=20260723-18`,
-  `./app.js?v=20260723-19`,
+  `./app.js?v=20260723-20`,
   `./auth.js?v=20260719-7`,
   `./firebase.js?v=20260719-7`,
   `./favicon.svg`,
