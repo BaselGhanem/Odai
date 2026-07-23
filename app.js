@@ -233,16 +233,15 @@ const META = {
     title: `المنتجات`,
     singular: `منتج`,
     collection: `products`,
-    search: [`name`, `category`, `brand`, `size`],
+    search: [`name`, `category`, `size`],
     columns: [
       [`name`, `المنتج`],
+      [`costPrice`, `سعر التكلفة`, `money`],
       [`category`, `الفئة`],
-      [`brand`, `العلامة`],
       [`size`, `القياس`],
       [`sellingPrice`, `سعر البيع`, `money`],
       [`stock`, `المخزون`],
       [`minimumStock`, `الحد الأدنى`],
-      [`active`, `الحالة`, `bool`],
     ],
     fields: [
       [`name`, `اسم المنتج`, `text`, true],
@@ -262,7 +261,6 @@ const META = {
           `أخرى`,
         ],
       ],
-      [`brand`, `العلامة التجارية`, `text`],
       [`size`, `القياس / العيار`, `text`],
       [`costPrice`, `سعر التكلفة`, `number`, true],
       [`sellingPrice`, `سعر البيع`, `number`, true],
@@ -1295,7 +1293,7 @@ async function renderPOS() {
     const type = $(`#pos-type`).value;
     const rows = sellables
       .filter((x) =>
-        [x.name, x.category, x.brand, x.size].some((value) =>
+        [x.name, x.category, x.size].some((value) =>
           String(value || ``)
             .toLowerCase()
             .includes(term),
@@ -1959,11 +1957,10 @@ function openRentalForm(products, customers) {
     const selectedValue = select.value;
     select.innerHTML = `<option value="">اختر الصنف</option>${products
       .filter((product) =>
-        [product.name, product.category, product.brand, product.size].some(
-          (value) =>
-            String(value || ``)
-              .toLowerCase()
-              .includes(term),
+        [product.name, product.category, product.size].some((value) =>
+          String(value || ``)
+            .toLowerCase()
+            .includes(term),
         ),
       )
       .map(
