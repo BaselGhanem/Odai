@@ -1163,10 +1163,12 @@ body:has(.tour-overlay:not(.hidden)) {
   text-align: right;
   display: grid;
   gap: 7px;
+  cursor: pointer;
 }
 .product-card:hover {
   border-color: var(--primary);
   box-shadow: 0 6px 16px rgba(151, 14, 22, 0.09);
+  transform: translateY(-2px);
 }
 .product-card strong {
   font-size: 13px;
@@ -1177,9 +1179,33 @@ body:has(.tour-overlay:not(.hidden)) {
 .product-card b {
   color: var(--primary-dark);
 }
+.product-card-action {
+  width: fit-content;
+  margin-top: 2px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-size: 9px;
+  font-weight: 800;
+}
+.pos-products-head .section-note,
+.panel-head .section-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.65;
+}
 .cart {
   position: sticky;
   top: 20px;
+}
+.cart-count {
+  margin-top: 5px;
+  display: block;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 800;
 }
 .cart-list {
   display: grid;
@@ -1421,6 +1447,113 @@ body:has(.tour-overlay:not(.hidden)) {
 .pwa-install-brand small {
   color: var(--muted);
   font-size: 9px;
+}
+.sale-submit-actions {
+  margin-top: 13px;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 8px;
+}
+.sale-submit-actions .btn {
+  min-height: 46px;
+}
+.sale-submit-note {
+  margin-top: 8px;
+  display: block;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.purchase-items-editor {
+  margin: 8px 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fdfafb;
+}
+.purchase-items-editor > header {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--primary-soft);
+}
+.purchase-items-editor > header > div {
+  display: grid;
+  gap: 4px;
+}
+.purchase-items-editor > header strong {
+  color: var(--primary-dark);
+  font-size: 11px;
+}
+.purchase-items-editor > header small {
+  color: var(--muted);
+  font-size: 8px;
+}
+.purchase-item-list {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+.purchase-item-row {
+  padding: 10px;
+  border: 1px solid rgba(151, 14, 22, 0.1);
+  border-radius: 13px;
+  display: grid;
+  grid-template-columns: 30px minmax(170px, 1fr) 100px 125px 38px;
+  align-items: end;
+  gap: 8px;
+  background: #fff;
+}
+.purchase-item-row label {
+  margin: 0;
+}
+.purchase-item-row input,
+.purchase-item-row select {
+  margin-top: 5px;
+}
+.purchase-item-number {
+  width: 30px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-size: 10px;
+  font-weight: 800;
+}
+.purchase-item-remove {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(151, 14, 22, 0.16);
+  border-radius: 10px;
+  color: var(--primary);
+  background: #fff;
+  font-size: 18px;
+}
+.purchase-item-remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.purchase-total {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  background: #fff;
+  font-size: 9px;
+}
+.purchase-total strong {
+  color: var(--primary-dark);
+  font-size: 15px;
 }
 .pwa-install-brand strong {
   color: var(--primary-dark);
@@ -1673,6 +1806,30 @@ body.install-prompt-open {
   .form-grid .full {
     grid-column: auto;
   }
+  .purchase-items-editor {
+    grid-column: 1 / -1;
+  }
+  .purchase-item-row {
+    grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr) 38px;
+    align-items: end;
+  }
+  .purchase-item-number {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .purchase-item-row label:nth-of-type(1) {
+    grid-column: 2 / 4;
+  }
+  .purchase-item-row label:nth-of-type(2) {
+    grid-column: 1 / 3;
+  }
+  .purchase-item-row label:nth-of-type(3) {
+    grid-column: 3 / 5;
+  }
+  .purchase-item-remove {
+    grid-column: 4;
+    grid-row: 1;
+  }
   .invoice-document {
     padding: 18px;
     border: 0;
@@ -1761,6 +1918,16 @@ body.install-prompt-open {
   }
   .toolbar > *:first-child {
     grid-column: auto;
+  }
+  .sale-submit-actions {
+    grid-template-columns: 1fr;
+  }
+  .purchase-items-editor > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .purchase-items-editor > header .btn {
+    width: 100%;
   }
 }
 @media (prefers-reduced-motion: reduce) {
