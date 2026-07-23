@@ -182,7 +182,7 @@ const NAV = [
   [`services`, `⚙`, `الخدمات`],
   [`offers`, `★`, `العروض`],
   [`purchases`, `⇣`, `المشتريات`],
-  [`rentals`, `↔`, `الإيجارات`],
+  [`rentals`, `↔`, `التأجير`],
   [`customers`, `♙`, `الزبائن`],
   [`suppliers`, `♜`, `الموردون`],
   [`employees`, `♟`, `الموظفون`],
@@ -245,7 +245,7 @@ const META = {
     ],
     fields: [
       [`name`, `اسم المنتج`, `text`, true],
-      [`sku`, `الباركود / SKU`, `text`, true],
+      [`sku`, `الباركود / SKU (اختياري)`, `text`],
       [
         `category`,
         `الفئة`,
@@ -262,21 +262,21 @@ const META = {
           `أخرى`,
         ],
       ],
-      [`subcategory`, `الفئة الفرعية`, `text`],
       [`brand`, `العلامة التجارية`, `text`],
       [`size`, `القياس / العيار`, `text`],
-      [`unit`, `الوحدة`, `text`],
       [`costPrice`, `سعر التكلفة`, `number`, true],
       [`sellingPrice`, `سعر البيع`, `number`, true],
       [`stock`, `الرصيد الحالي`, `number`, true],
       [`minimumStock`, `الحد الأدنى`, `number`],
-      [`location`, `الموقع`, `text`],
-      [`supplier`, `المورد`, `text`],
-      [`usedItem`, `مستعمل`, `checkbox`],
-      [`rentable`, `قابل للتأجير`, `checkbox`],
-      [`active`, `نشط`, `checkbox`],
       [`notes`, `ملاحظات`, `textarea`],
     ],
+    compute: (data, row) => ({
+      ...data,
+      unit: row?.unit || `قطعة`,
+      active: row?.active !== false,
+      rentable: true,
+      usedItem: data.category === `كوشوك مستعمل`,
+    }),
   },
   services: {
     title: `الخدمات`,
@@ -503,7 +503,7 @@ const PAGE_TITLES = {
   dashboard: [`نظرة عامة`, `لوحة التحكم`],
   pos: [`بيع سريع`, `نقطة البيع`],
   purchases: [`توريد المخزون`, `المشتريات`],
-  rentals: [`متابعة العهد`, `الإيجارات`],
+  rentals: [`التأجير والاسترجاع`, `التأجير`],
   invoices: [`سجل العمليات`, `الفواتير`],
   reports: [`تحليل الأداء`, `التقارير`],
   users: [`إدارة الوصول`, `المستخدمون والصلاحيات`],
@@ -517,11 +517,11 @@ const TOUR_COPY = {
   ],
   pos: [
     `نقطة البيع`,
-    `اختر المنتجات والخدمات، راجع السلة، ثم احفظ الفاتورة. المخزون والصندوق يتحدثان تلقائيا.`,
+    `أضف أي عدد من المنتجات والخدمات إلى الفاتورة، ثم اعتمدها مع الطباعة أو دونها.`,
   ],
   products: [
     `المنتجات`,
-    `أضف الإطارات والزيوت والمواد، وحدد السعر والمخزون والحد الأدنى لكل منتج.`,
+    `أدخل البيانات الأساسية للصنف بسرعة؛ وجميع الأصناف متاحة للتأجير تلقائيا.`,
   ],
   services: [
     `الخدمات`,
@@ -530,11 +530,11 @@ const TOUR_COPY = {
   offers: [`العروض`, `أنشئ عروض الزيوت والباقات وحدد فترة صلاحيتها وسعرها.`],
   purchases: [
     `المشتريات`,
-    `سجّل فاتورة المورد هنا؛ ستُضاف الكمية إلى المخزون ويُسجّل الدفع تلقائيا.`,
+    `أضف عدة أصناف إلى فاتورة المورد نفسها؛ يتحدث مخزون كل صنف والدفع تلقائيا.`,
   ],
   rentals: [
-    `الإيجارات`,
-    `سجّل خروج المادة وموعد إرجاعها، ثم تابع حالتها حتى الاستلام.`,
+    `التأجير`,
+    `اختر أي صنف نشط، وسجّل خروجه وموعد إرجاعه، ثم تابع حالته حتى الاستلام.`,
   ],
   customers: [
     `الزبائن`,
@@ -644,7 +644,7 @@ function tourSteps(module) {
       {
         selector: `.toolbar`,
         title: `ابحث واختر`,
-        text: `ابحث عن منتج أو خدمة ثم اضغط عليه لإضافته إلى الفاتورة.`,
+        text: `ابحث عن المنتجات والخدمات واضغط على كل ما تريد إضافته إلى الفاتورة نفسها.`,
       },
       {
         selector: `#product-grid`,
@@ -654,7 +654,7 @@ function tourSteps(module) {
       {
         selector: `.cart`,
         title: `إتمام الفاتورة`,
-        text: `حدد الزبون والدفع، ويمكنك وضع سعر وحدة خاص لهذه الفاتورة فقط، ثم احفظ؛ المخزون والصندوق يتحدثان تلقائيا.`,
+        text: `راجع جميع الأصناف وحدد الزبون والدفع، ثم اختر اعتماد الفاتورة فقط أو اعتمادها وطباعتها.`,
       },
     );
   else if (module === `reports`)
@@ -1087,7 +1087,7 @@ function openEntityForm(module, row = null) {
       if (type === `number`) data[key] = Number(data[key] || 0);
       if (type === `checkbox`) data[key] = data[key] === `true`;
     });
-    const computed = meta.compute ? meta.compute(data) : data;
+    const computed = meta.compute ? meta.compute(data, row) : data;
     const saveButton = $(`#dialog-save`);
     saveButton.disabled = true;
     try {
@@ -1289,7 +1289,7 @@ async function renderPOS() {
   ];
   state.cache.pos = { sellables, customers };
   $(`#page`).innerHTML =
-    `<div class="pos-layout"><section class="panel"><div class="panel-head"><h2>اختر مادة أو خدمة</h2></div><div class="toolbar"><input id="pos-search" placeholder="ابحث بالاسم أو الباركود…"><select id="pos-type"><option value="all">الكل</option><option value="product">منتجات</option><option value="service">خدمات</option></select></div><div id="product-grid" class="product-grid"></div></section><section class="panel cart"><div class="panel-head"><h2>الفاتورة الحالية</h2><button class="btn ghost small" id="clear-cart">مسح</button></div><div id="cart-list" class="cart-list"></div><label>الزبون<select id="pos-customer"><option value="">زبون نقدي</option>${customers.map((c) => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join(``)}</select></label><div class="form-grid"><label>طريقة الدفع<select id="pos-payment">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label>الخصم<input id="pos-discount" type="number" min="0" step="0.01" value="0" ${can(state.user, `pos`, `discount`) ? `` : `disabled`}></label></div><label>ملاحظات<textarea id="pos-notes" rows="2"></textarea></label><div id="cart-totals" class="totals"></div><button id="save-sale" class="btn primary wide">حفظ وطباعة الفاتورة</button></section></div>`;
+    `<div class="pos-layout"><section class="panel"><div class="panel-head pos-products-head"><div><h2>اختر الأصناف والخدمات</h2><p class="section-note">اضغط على أي عدد من الأصناف لإضافتها إلى الفاتورة نفسها.</p></div></div><div class="toolbar"><input id="pos-search" placeholder="ابحث بالاسم أو الباركود…"><select id="pos-type"><option value="all">الكل</option><option value="product">منتجات</option><option value="service">خدمات</option></select></div><div id="product-grid" class="product-grid"></div></section><section class="panel cart"><div class="panel-head"><div><h2>الفاتورة الحالية</h2><small id="cart-count" class="cart-count">لا توجد أصناف</small></div><button class="btn ghost small" id="clear-cart">مسح</button></div><div id="cart-list" class="cart-list"></div><label>الزبون<select id="pos-customer"><option value="">زبون نقدي</option>${customers.map((c) => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join(``)}</select></label><div class="form-grid"><label>طريقة الدفع<select id="pos-payment">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label>الخصم<input id="pos-discount" type="number" min="0" step="0.01" value="0" ${can(state.user, `pos`, `discount`) ? `` : `disabled`}></label></div><label>ملاحظات<textarea id="pos-notes" rows="2"></textarea></label><div id="cart-totals" class="totals"></div><div class="sale-submit-actions"><button id="approve-sale" class="btn primary" type="button">اعتماد الفاتورة</button><button id="approve-print-sale" class="btn ghost" type="button">اعتماد وطباعة</button></div><small class="sale-submit-note">الاعتماد يحفظ الفاتورة ويحدّث المخزون دون فتح الطباعة.</small></section></div>`;
   const drawProducts = () => {
     const term = $(`#pos-search`).value.toLowerCase();
     const type = $(`#pos-type`).value;
@@ -1304,7 +1304,7 @@ async function renderPOS() {
       ? rows
           .map(
             (item) =>
-              `<button class="product-card" data-item="${item.id}" data-type="${item.type}"><small>${item.type === `product` ? escapeHTML(item.category) : `خدمة`}</small><strong>${escapeHTML(item.name)}</strong><b>${money(item.price)}</b><small>${item.type === `product` ? `المتوفر: ${item.stock || 0}` : `لا تخصم من المخزون`}</small></button>`,
+              `<button class="product-card" type="button" data-item="${item.id}" data-type="${item.type}"><small>${item.type === `product` ? escapeHTML(item.category) : `خدمة`}</small><strong>${escapeHTML(item.name)}</strong><b>${money(item.price)}</b><small>${item.type === `product` ? `المتوفر: ${item.stock || 0}` : `لا تخصم من المخزون`}</small><span class="product-card-action">+ إضافة للفاتورة</span></button>`,
           )
           .join(``)
       : `<div class="empty"><strong>لا توجد نتائج</strong>جرّب كلمة بحث أخرى.</div>`;
@@ -1339,7 +1339,8 @@ async function renderPOS() {
     drawCart();
   };
   $(`#pos-discount`).oninput = drawCart;
-  $(`#save-sale`).onclick = saveSale;
+  $(`#approve-sale`).onclick = () => saveSale({ printAfterSave: false });
+  $(`#approve-print-sale`).onclick = () => saveSale({ printAfterSave: true });
 }
 function cartKey(item) {
   return `${item.type}:${item.id}`;
@@ -1432,6 +1433,17 @@ function cartTotals() {
 function drawCart() {
   const list = $(`#cart-list`);
   if (!list) return;
+  const cartCount = $(`#cart-count`);
+  if (cartCount) {
+    const itemTypes = state.cart.length;
+    const totalQuantity = state.cart.reduce(
+      (sum, item) => sum + Number(item.quantity || 0),
+      0,
+    );
+    cartCount.textContent = itemTypes
+      ? `${itemTypes} صنف · ${totalQuantity} قطعة/خدمة`
+      : `لا توجد أصناف`;
+  }
   list.innerHTML = state.cart.length
     ? state.cart
         .map((item) => {
@@ -1448,7 +1460,7 @@ function drawCartTotals() {
   const t = cartTotals();
   totals.innerHTML = `<div class="total-line"><span>${t.discount > 0 ? `الإجمالي قبل الخصم` : `الإجمالي`}</span><b>${money(t.gross)}</b></div>${t.discount > 0 ? `<div class="total-line"><span>الخصم</span><b>${money(t.discount)}</b></div>` : ``}<div class="total-line final"><span>${t.discount > 0 ? `الصافي` : `المطلوب`}</span><b>${money(t.net)}</b></div>`;
 }
-async function saveSale() {
+async function saveSale({ printAfterSave = false } = {}) {
   if (!state.cart.length) {
     toast(`أضف مادة واحدة على الأقل`, `error`);
     return;
@@ -1479,9 +1491,13 @@ async function saveSale() {
   }
   const finalTotals = cartTotals();
   const saleCart = state.cart.map((item) => ({ ...item }));
-  const printWindow = window.open(``, `_blank`, `width=440,height=720`);
-  const button = $(`#save-sale`);
-  button.disabled = true;
+  const printWindow = printAfterSave
+    ? window.open(``, `_blank`, `width=440,height=720`)
+    : null;
+  const approveButton = $(`#approve-sale`);
+  const printButton = $(`#approve-print-sale`);
+  approveButton.disabled = true;
+  printButton.disabled = true;
   $(`#page`).classList.add(`is-saving`);
   try {
     const invoiceNo = `${state.settings.invoicePrefix || `INV`}-${Date.now().toString().slice(-9)}`;
@@ -1590,24 +1606,30 @@ async function saveSale() {
       netTotal: finalTotals.net,
       priceAdjustments,
     });
-    toast(`تم حفظ الفاتورة بنجاح`);
-    printInvoice(
-      {
-        invoiceNo,
-        customerName: customer?.name || `زبون نقدي`,
-        ...finalTotals,
-        items: saleCart,
-        paymentMethod,
-      },
-      printWindow,
+    toast(
+      printAfterSave
+        ? `تم اعتماد الفاتورة وفتح الطباعة`
+        : `تم اعتماد الفاتورة وحفظها دون طباعة`,
     );
+    if (printAfterSave)
+      printInvoice(
+        {
+          invoiceNo,
+          customerName: customer?.name || `زبون نقدي`,
+          ...finalTotals,
+          items: saleCart,
+          paymentMethod,
+        },
+        printWindow,
+      );
     state.cart = [];
     await renderPOS();
   } catch (error) {
     if (printWindow && !printWindow.closed) printWindow.close();
     toast(readableError(error), `error`);
   } finally {
-    button.disabled = false;
+    if (approveButton) approveButton.disabled = false;
+    if (printButton) printButton.disabled = false;
     $(`#page`).classList.remove(`is-saving`);
   }
 }
@@ -1659,20 +1681,126 @@ function openPurchaseForm(products, suppliers) {
   }
   $(`#dialog-title`).textContent = `فاتورة شراء جديدة`;
   $(`#dialog-body`).innerHTML =
-    `<form id="purchase-form" class="form-grid"><label>المورد<select name="supplierId" required><option value="">اختر</option>${suppliers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>تاريخ الشراء<input name="purchaseDate" type="date" value="${todayISO()}" required></label><label>المنتج<select name="productId" required><option value="">اختر</option>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" required></label><label>تكلفة الوحدة<input name="unitCost" type="number" min="0" step="0.01" required></label><label>المبلغ المدفوع<input name="paidAmount" type="number" min="0" step="0.01" required></label><label>طريقة الدفع<select name="paymentMethod">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
+    `<form id="purchase-form" class="form-grid"><label>المورد<select name="supplierId" required><option value="">اختر</option>${suppliers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>تاريخ الشراء<input name="purchaseDate" type="date" value="${todayISO()}" required></label><section class="purchase-items-editor full"><header><div><strong>أصناف الفاتورة</strong><small>يمكنك إضافة عدة أصناف في فاتورة الشراء نفسها.</small></div><button id="add-purchase-item" class="btn ghost small" type="button">+ إضافة صنف</button></header><div id="purchase-item-list" class="purchase-item-list"></div><div class="purchase-total"><span>إجمالي الفاتورة</span><strong id="purchase-total">${money(0)}</strong></div></section><label>المبلغ المدفوع<input name="paidAmount" type="number" min="0" step="0.01" value="0" required></label><label>طريقة الدفع<select name="paymentMethod">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
   const dialog = $(`#entity-dialog`);
+  const purchaseItems = [];
+  let purchaseItemSequence = 0;
+  const addPurchaseItem = () => {
+    if (purchaseItems.length >= 50) {
+      toast(`الحد الأعلى هو 50 صنفا في الفاتورة الواحدة`, `error`);
+      return;
+    }
+    purchaseItemSequence += 1;
+    purchaseItems.push({
+      key: `purchase-${purchaseItemSequence}`,
+      productId: ``,
+      quantity: 1,
+      unitCost: 0,
+    });
+    drawPurchaseItems();
+  };
+  const purchaseTotal = () =>
+    purchaseItems.reduce(
+      (sum, item) =>
+        sum + Number(item.quantity || 0) * Number(item.unitCost || 0),
+      0,
+    );
+  const updatePurchaseTotal = () => {
+    const total = $(`#purchase-total`);
+    if (total) total.textContent = money(purchaseTotal());
+  };
+  const drawPurchaseItems = () => {
+    const list = $(`#purchase-item-list`);
+    if (!list) return;
+    list.innerHTML = purchaseItems
+      .map(
+        (item, index) =>
+          `<article class="purchase-item-row" data-purchase-key="${item.key}"><span class="purchase-item-number">${index + 1}</span><label>الصنف<select data-purchase-field="productId" required><option value="">اختر الصنف</option>${products.map((product) => `<option value="${product.id}" ${item.productId === product.id ? `selected` : ``}>${escapeHTML(product.name)}</option>`).join(``)}</select></label><label>الكمية<input data-purchase-field="quantity" type="number" min="1" step="1" value="${item.quantity}" required></label><label>تكلفة الوحدة<input data-purchase-field="unitCost" type="number" min="0" step="0.01" value="${item.unitCost}" required></label><button class="purchase-item-remove" type="button" data-remove-purchase-item="${item.key}" aria-label="حذف الصنف" ${purchaseItems.length === 1 ? `disabled` : ``}>×</button></article>`,
+      )
+      .join(``);
+    updatePurchaseTotal();
+  };
+  $(`#add-purchase-item`).onclick = addPurchaseItem;
+  $(`#purchase-item-list`).onclick = (event) => {
+    const button = event.target.closest(`[data-remove-purchase-item]`);
+    if (!button || purchaseItems.length === 1) return;
+    const index = purchaseItems.findIndex(
+      (item) => item.key === button.dataset.removePurchaseItem,
+    );
+    if (index >= 0) purchaseItems.splice(index, 1);
+    drawPurchaseItems();
+  };
+  $(`#purchase-item-list`).onchange = (event) => {
+    const field = event.target.closest(`[data-purchase-field]`);
+    const row = event.target.closest(`[data-purchase-key]`);
+    if (!field || !row) return;
+    const item = purchaseItems.find(
+      (entry) => entry.key === row.dataset.purchaseKey,
+    );
+    if (!item) return;
+    if (field.dataset.purchaseField === `productId`) {
+      item.productId = field.value;
+      const product = products.find((entry) => entry.id === field.value);
+      if (
+        product &&
+        (!Number.isFinite(Number(item.unitCost)) || Number(item.unitCost) === 0)
+      ) {
+        item.unitCost = Number(product.costPrice || 0);
+        const costInput = row.querySelector(`[data-purchase-field="unitCost"]`);
+        if (costInput) costInput.value = String(item.unitCost);
+      }
+    }
+    updatePurchaseTotal();
+  };
+  $(`#purchase-item-list`).oninput = (event) => {
+    const field = event.target.closest(`[data-purchase-field]`);
+    const row = event.target.closest(`[data-purchase-key]`);
+    if (!field || !row || field.dataset.purchaseField === `productId`) return;
+    const item = purchaseItems.find(
+      (entry) => entry.key === row.dataset.purchaseKey,
+    );
+    if (!item) return;
+    item[field.dataset.purchaseField] = Number(field.value);
+    updatePurchaseTotal();
+  };
+  addPurchaseItem();
   showDialog(dialog);
   $(`#dialog-save`).onclick = async (event) => {
     event.preventDefault();
     const form = validForm(`#purchase-form`);
     if (!form) return;
     const data = Object.fromEntries(new FormData(form));
-    const product = products.find((x) => x.id === data.productId);
     const supplier = suppliers.find((x) => x.id === data.supplierId);
-    data.quantity = Number(data.quantity);
-    data.unitCost = Number(data.unitCost);
+    const normalizedItems = purchaseItems.map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      unitCost: Number(item.unitCost),
+      product: products.find((product) => product.id === item.productId),
+    }));
+    const invalidItem = normalizedItems.find(
+      (item) =>
+        !item.product ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity <= 0 ||
+        !Number.isFinite(item.unitCost) ||
+        item.unitCost < 0,
+    );
+    if (invalidItem) {
+      toast(`أكمل الصنف والكمية والتكلفة لكل سطر`, `error`);
+      return;
+    }
+    if (
+      new Set(normalizedItems.map((item) => item.productId)).size !==
+      normalizedItems.length
+    ) {
+      toast(`يوجد صنف مكرر؛ عدّل كميته في سطر واحد`, `error`);
+      return;
+    }
     data.paidAmount = Number(data.paidAmount);
-    data.totalCost = data.quantity * data.unitCost;
+    data.totalCost = normalizedItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitCost,
+      0,
+    );
     if (data.paidAmount > data.totalCost) {
       toast(`المبلغ المدفوع لا يمكن أن يتجاوز إجمالي فاتورة الشراء`, `error`);
       form.elements.paidAmount.focus();
@@ -1680,6 +1808,10 @@ function openPurchaseForm(products, suppliers) {
     }
     data.remainingAmount = Math.max(0, data.totalCost - data.paidAmount);
     data.invoiceNo = `PUR-${Date.now().toString().slice(-9)}`;
+    const totalQuantity = normalizedItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    );
     const saveButton = $(`#dialog-save`);
     saveButton.disabled = true;
     try {
@@ -1687,47 +1819,58 @@ function openPurchaseForm(products, suppliers) {
       const batch = writeBatch(db);
       batch.set(ref, {
         ...data,
-        productName: product.name,
+        productId: normalizedItems[0].productId,
+        productName:
+          normalizedItems.length === 1
+            ? normalizedItems[0].product.name
+            : `${normalizedItems.length} أصناف`,
+        quantity: totalQuantity,
+        unitCost:
+          normalizedItems.length === 1 ? normalizedItems[0].unitCost : null,
+        itemCount: normalizedItems.length,
         supplierName: supplier.name,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: state.user.id,
         isDeleted: false,
       });
-      batch.update(doc(db, `products`, product.id), {
-        stock: increment(data.quantity),
-        costPrice: data.unitCost,
-        updatedAt: serverTimestamp(),
-        updatedBy: state.user.id,
-      });
       batch.update(doc(db, `suppliers`, supplier.id), {
         balance: increment(data.remainingAmount),
         updatedAt: serverTimestamp(),
         updatedBy: state.user.id,
       });
-      batch.set(doc(collection(db, `purchaseItems`)), {
-        purchaseId: ref.id,
-        productId: product.id,
-        productName: product.name,
-        quantity: data.quantity,
-        unitCost: data.unitCost,
-        totalCost: data.totalCost,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: state.user.id,
-        isDeleted: false,
-      });
-      batch.set(doc(collection(db, `stockMovements`)), {
-        productId: product.id,
-        productName: product.name,
-        type: `شراء`,
-        quantity: data.quantity,
-        referenceId: ref.id,
-        referenceNo: data.invoiceNo,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: state.user.id,
-        isDeleted: false,
+      normalizedItems.forEach((item) => {
+        batch.update(doc(db, `products`, item.productId), {
+          stock: increment(item.quantity),
+          costPrice: item.unitCost,
+          updatedAt: serverTimestamp(),
+          updatedBy: state.user.id,
+        });
+        batch.set(doc(collection(db, `purchaseItems`)), {
+          purchaseId: ref.id,
+          invoiceNo: data.invoiceNo,
+          productId: item.productId,
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+          totalCost: item.quantity * item.unitCost,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: state.user.id,
+          isDeleted: false,
+        });
+        batch.set(doc(collection(db, `stockMovements`)), {
+          productId: item.productId,
+          productName: item.product.name,
+          type: `شراء`,
+          quantity: item.quantity,
+          referenceId: ref.id,
+          referenceNo: data.invoiceNo,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdBy: state.user.id,
+          isDeleted: false,
+        });
       });
       if (data.paidAmount > 0)
         batch.set(doc(collection(db, `cashMovements`)), {
@@ -1742,7 +1885,16 @@ function openPurchaseForm(products, suppliers) {
           isDeleted: false,
         });
       await batch.commit();
-      await audit(`create`, `purchases`, null, data);
+      await audit(`create`, `purchases`, null, {
+        ...data,
+        itemCount: normalizedItems.length,
+        items: normalizedItems.map((item) => ({
+          productId: item.productId,
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+        })),
+      });
       dialog.close();
       toast(`تم حفظ المشتريات وتحديث المخزون`);
       navigate(`purchases`);
@@ -1762,7 +1914,7 @@ async function renderRentals() {
   ]);
   state.cache.rentals = { rentals, products, customers };
   $(`#page`).innerHTML =
-    `<section class="panel"><div class="panel-head"><h2>حركات التأجير</h2><button class="btn primary" id="new-rental">تأجير مادة</button></div>${simpleTable(
+    `<section class="panel"><div class="panel-head"><div><h2>التأجير والاسترجاع</h2><p class="section-note">يمكن تأجير أي صنف نشط ما دامت كميته متوفرة.</p></div><button class="btn primary" id="new-rental">تأجير صنف</button></div>${simpleTable(
       rentals,
       [
         [`itemName`, `المادة`],
@@ -1776,7 +1928,7 @@ async function renderRentals() {
     )}</section>`;
   $(`#new-rental`).onclick = () =>
     openRentalForm(
-      products.filter((x) => x.rentable && x.active !== false),
+      products.filter((x) => x.active !== false),
       customers,
     );
   $(`#page`).onclick = (event) => {
@@ -1787,18 +1939,38 @@ async function renderRentals() {
 }
 function openRentalForm(products, customers) {
   if (!products.length) {
-    toast(`عرّف منتجا قابلا للتأجير أولا`, `error`);
+    toast(`أضف صنفا أولا قبل تسجيل التأجير`, `error`);
     return;
   }
   if (!customers.length) {
     toast(`أضف زبونا قبل تسجيل عملية تأجير`, `error`);
     return;
   }
-  $(`#dialog-title`).textContent = `تأجير مادة`;
+  $(`#dialog-title`).textContent = `تأجير صنف`;
   $(`#dialog-body`).innerHTML =
-    `<form id="rental-form" class="form-grid"><label>المادة<select name="itemId" required>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)} — متوفر ${x.stock || 0}</option>`).join(``)}</select></label><label>الزبون<select name="customerId" required>${customers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>تاريخ التأجير<input name="rentalDate" type="date" value="${todayISO()}" required></label><label>الإرجاع المتوقع<input name="expectedReturnDate" type="date" value="${todayISO()}" required></label><label>سعر التأجير<input name="rentalPrice" type="number" min="0" step="0.01" required></label><label>التأمين<input name="deposit" type="number" min="0" step="0.01" value="0"></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
+    `<form id="rental-form" class="form-grid"><label class="full">ابحث عن الصنف<input id="rental-item-search" type="search" placeholder="اكتب اسم الصنف أو الباركود…"></label><label>الصنف<select id="rental-item-select" name="itemId" required><option value="">اختر الصنف</option>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)} — متوفر ${x.stock || 0}</option>`).join(``)}</select></label><label>الزبون<select name="customerId" required><option value="">اختر الزبون</option>${customers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>تاريخ التأجير<input name="rentalDate" type="date" value="${todayISO()}" required></label><label>الإرجاع المتوقع<input name="expectedReturnDate" type="date" value="${todayISO()}" required></label><label>سعر التأجير<input name="rentalPrice" type="number" min="0" step="0.01" required></label><label>التأمين<input name="deposit" type="number" min="0" step="0.01" value="0"></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
   const dialog = $(`#entity-dialog`);
   showDialog(dialog);
+  $(`#rental-item-search`).oninput = (event) => {
+    const term = event.currentTarget.value.trim().toLowerCase();
+    const select = $(`#rental-item-select`);
+    const selectedValue = select.value;
+    select.innerHTML = `<option value="">اختر الصنف</option>${products
+      .filter((product) =>
+        [product.name, product.sku].some((value) =>
+          String(value || ``)
+            .toLowerCase()
+            .includes(term),
+        ),
+      )
+      .map(
+        (product) =>
+          `<option value="${product.id}">${escapeHTML(product.name)} — متوفر ${product.stock || 0}</option>`,
+      )
+      .join(``)}`;
+    if ([...select.options].some((option) => option.value === selectedValue))
+      select.value = selectedValue;
+  };
   $(`#dialog-save`).onclick = async (event) => {
     event.preventDefault();
     const form = validForm(`#rental-form`);
