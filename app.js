@@ -233,11 +233,12 @@ const META = {
     title: `المنتجات`,
     singular: `منتج`,
     collection: `products`,
-    search: [`name`, `sku`, `category`],
+    search: [`name`, `category`, `brand`, `size`],
     columns: [
       [`name`, `المنتج`],
-      [`sku`, `الرمز`],
       [`category`, `الفئة`],
+      [`brand`, `العلامة`],
+      [`size`, `القياس`],
       [`sellingPrice`, `سعر البيع`, `money`],
       [`stock`, `المخزون`],
       [`minimumStock`, `الحد الأدنى`],
@@ -245,7 +246,6 @@ const META = {
     ],
     fields: [
       [`name`, `اسم المنتج`, `text`, true],
-      [`sku`, `الباركود / SKU (اختياري)`, `text`],
       [
         `category`,
         `الفئة`,
@@ -1289,15 +1289,17 @@ async function renderPOS() {
   ];
   state.cache.pos = { sellables, customers };
   $(`#page`).innerHTML =
-    `<div class="pos-layout"><section class="panel"><div class="panel-head pos-products-head"><div><h2>اختر الأصناف والخدمات</h2><p class="section-note">اضغط على أي عدد من الأصناف لإضافتها إلى الفاتورة نفسها.</p></div></div><div class="toolbar"><input id="pos-search" placeholder="ابحث بالاسم أو الباركود…"><select id="pos-type"><option value="all">الكل</option><option value="product">منتجات</option><option value="service">خدمات</option></select></div><div id="product-grid" class="product-grid"></div></section><section class="panel cart"><div class="panel-head"><div><h2>الفاتورة الحالية</h2><small id="cart-count" class="cart-count">لا توجد أصناف</small></div><button class="btn ghost small" id="clear-cart">مسح</button></div><div id="cart-list" class="cart-list"></div><label>الزبون<select id="pos-customer"><option value="">زبون نقدي</option>${customers.map((c) => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join(``)}</select></label><div class="form-grid"><label>طريقة الدفع<select id="pos-payment">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label>الخصم<input id="pos-discount" type="number" min="0" step="0.01" value="0" ${can(state.user, `pos`, `discount`) ? `` : `disabled`}></label></div><label>ملاحظات<textarea id="pos-notes" rows="2"></textarea></label><div id="cart-totals" class="totals"></div><div class="sale-submit-actions"><button id="approve-sale" class="btn primary" type="button">اعتماد الفاتورة</button><button id="approve-print-sale" class="btn ghost" type="button">اعتماد وطباعة</button></div><small class="sale-submit-note">الاعتماد يحفظ الفاتورة ويحدّث المخزون دون فتح الطباعة.</small></section></div>`;
+    `<div class="pos-layout"><section class="panel"><div class="panel-head pos-products-head"><div><h2>اختر الأصناف والخدمات</h2><p class="section-note">اضغط على أي عدد من الأصناف لإضافتها إلى الفاتورة نفسها.</p></div></div><div class="toolbar"><input id="pos-search" placeholder="ابحث بالاسم أو الفئة أو القياس…"><select id="pos-type"><option value="all">الكل</option><option value="product">منتجات</option><option value="service">خدمات</option></select></div><div id="product-grid" class="product-grid"></div></section><section class="panel cart"><div class="panel-head"><div><h2>الفاتورة الحالية</h2><small id="cart-count" class="cart-count">لا توجد أصناف</small></div><button class="btn ghost small" id="clear-cart">مسح</button></div><div id="cart-list" class="cart-list"></div><label>الزبون<select id="pos-customer"><option value="">زبون نقدي</option>${customers.map((c) => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join(``)}</select></label><div class="form-grid"><label>طريقة الدفع<select id="pos-payment">${state.settings.paymentMethods.map((x) => `<option>${x}</option>`).join(``)}</select></label><label>الخصم<input id="pos-discount" type="number" min="0" step="0.01" value="0" ${can(state.user, `pos`, `discount`) ? `` : `disabled`}></label></div><label>ملاحظات<textarea id="pos-notes" rows="2"></textarea></label><div id="cart-totals" class="totals"></div><div class="sale-submit-actions"><button id="approve-sale" class="btn primary" type="button">اعتماد الفاتورة</button><button id="approve-print-sale" class="btn ghost" type="button">اعتماد وطباعة</button></div><small class="sale-submit-note">الاعتماد يحفظ الفاتورة ويحدّث المخزون دون فتح الطباعة.</small></section></div>`;
   const drawProducts = () => {
     const term = $(`#pos-search`).value.toLowerCase();
     const type = $(`#pos-type`).value;
     const rows = sellables
-      .filter(
-        (x) =>
-          (x.name || ``).toLowerCase().includes(term) ||
-          (x.sku || ``).toLowerCase().includes(term),
+      .filter((x) =>
+        [x.name, x.category, x.brand, x.size].some((value) =>
+          String(value || ``)
+            .toLowerCase()
+            .includes(term),
+        ),
       )
       .filter((x) => type === `all` || x.type === type);
     $(`#product-grid`).innerHTML = rows.length
@@ -1948,7 +1950,7 @@ function openRentalForm(products, customers) {
   }
   $(`#dialog-title`).textContent = `تأجير صنف`;
   $(`#dialog-body`).innerHTML =
-    `<form id="rental-form" class="form-grid"><label class="full">ابحث عن الصنف<input id="rental-item-search" type="search" placeholder="اكتب اسم الصنف أو الباركود…"></label><label>الصنف<select id="rental-item-select" name="itemId" required><option value="">اختر الصنف</option>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)} — متوفر ${x.stock || 0}</option>`).join(``)}</select></label><label>الزبون<select name="customerId" required><option value="">اختر الزبون</option>${customers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>تاريخ التأجير<input name="rentalDate" type="date" value="${todayISO()}" required></label><label>الإرجاع المتوقع<input name="expectedReturnDate" type="date" value="${todayISO()}" required></label><label>سعر التأجير<input name="rentalPrice" type="number" min="0" step="0.01" required></label><label>التأمين<input name="deposit" type="number" min="0" step="0.01" value="0"></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
+    `<form id="rental-form" class="form-grid"><label class="full">ابحث عن الصنف<input id="rental-item-search" type="search" placeholder="اكتب اسم الصنف أو الفئة أو القياس…"></label><label>الصنف<select id="rental-item-select" name="itemId" required><option value="">اختر الصنف</option>${products.map((x) => `<option value="${x.id}">${escapeHTML(x.name)} — متوفر ${x.stock || 0}</option>`).join(``)}</select></label><label>الزبون<select name="customerId" required><option value="">اختر الزبون</option>${customers.map((x) => `<option value="${x.id}">${escapeHTML(x.name)}</option>`).join(``)}</select></label><label>الكمية<input name="quantity" type="number" min="1" step="1" value="1" required></label><label>تاريخ التأجير<input name="rentalDate" type="date" value="${todayISO()}" required></label><label>الإرجاع المتوقع<input name="expectedReturnDate" type="date" value="${todayISO()}" required></label><label>سعر التأجير<input name="rentalPrice" type="number" min="0" step="0.01" required></label><label>التأمين<input name="deposit" type="number" min="0" step="0.01" value="0"></label><label class="full">ملاحظات<textarea name="notes"></textarea></label></form>`;
   const dialog = $(`#entity-dialog`);
   showDialog(dialog);
   $(`#rental-item-search`).oninput = (event) => {
@@ -1957,10 +1959,11 @@ function openRentalForm(products, customers) {
     const selectedValue = select.value;
     select.innerHTML = `<option value="">اختر الصنف</option>${products
       .filter((product) =>
-        [product.name, product.sku].some((value) =>
-          String(value || ``)
-            .toLowerCase()
-            .includes(term),
+        [product.name, product.category, product.brand, product.size].some(
+          (value) =>
+            String(value || ``)
+              .toLowerCase()
+              .includes(term),
         ),
       )
       .map(
